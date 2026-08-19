@@ -106,7 +106,7 @@ export class ChessBoard {
         if (piece) {
           const pieceEl = document.createElement('span');
           pieceEl.className = `piece piece-${piece.color}`;
-          pieceEl.dataset.square = square;
+          pieceEl.dataset.pieceSquare = square;
           pieceEl.innerHTML = pieceSvg(piece.type);
           pieceEl.addEventListener('pointerdown', event => this.startDrag(event, square, pieceEl));
           el.appendChild(pieceEl);
