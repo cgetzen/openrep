@@ -182,7 +182,9 @@ export class TrainerApp {
       this.board.clearSelection();
       this.refresh();
       if (this.ply >= this.line.moves.length) this.finishLine();
-      else window.setTimeout(() => this.autoPlayIfNeeded(), 75);
+      else if (this.chess.turn() !== this.course.side) {
+        window.setTimeout(() => this.autoPlayIfNeeded(), 75);
+      }
     } catch (error) {
       this.showFeedback(`Course data error at ply ${this.ply + 1}: ${error.message}`, 'wrong');
     }
