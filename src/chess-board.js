@@ -205,6 +205,9 @@ export class ChessBoard {
     event.preventDefault();
     const valid = target && this.targetSquares.has(target);
     this.suppressNextClick = true;
+    window.setTimeout(() => {
+      this.suppressNextClick = false;
+    }, 0);
     this.cleanupDrag(false);
 
     if (valid) {
