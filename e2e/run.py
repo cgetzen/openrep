@@ -19,9 +19,36 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+def square(page, name: str):
+    """Return exactly the board-square button, never a nested piece element."""
+    return page.locator(f'.square[data-square="{name}"]')
+
+
 def click_move(page, uci: str):
-    page.locator(f'[data-square="{uci[:2]}"]').dispatch_event('click')
-    page.locator(f'[data-square="{uci[2:4]}"]').dispatch_event('click')
+    square(page, uci[:2]).click()
+    square(page, uci[2:4]).click()
+
+
+def drag_move(page, uci: str):
+    """Exercise the same pointer-based drag behavior used by mouse/touch users."""
+    source = page.locator(f'.piece[data-piece-square="{uci[:2]}"]')
+    target = square(page, uci[2:4])
+    source_box = source.bounding_box()
+    target_box = target.bounding_box()
+    assert source_box and target_box, f'could not locate drag endpoints for {uci}'
+    sx = source_box['x'] + source_box['width'] / 2
+    sy = source_box['y'] + source_box['height'] / 2
+    tx = target_box['x'] + target_box['width'] / 2
+    ty = target_box['y'] + target_box['height'] / 2
+    page.mouse.move(sx, sy)
+    page.mouse.down()
+    page.mouse.move((sx + tx) / 2, (sy + ty) / 2, steps=4)
+    page.mouse.move(tx, ty, steps=4)
+    page.mouse.up()
+
+
+def is_highlighted(page, name: str) -> bool:
+    return square(page, name).evaluate('(el) => el.classList.contains("last-move")')
 
 
 def browser_bundle() -> str:
@@ -134,11 +161,44 @@ def run():
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('loads course and auto-plays 1.e4')
 
+            # New board UX: original SVG pieces and opponent last-move highlighting.
+            expect(page.locator('.piece-svg')).to_have_count(32)
+            expect(page.locator('.square.last-move')).to_have_count(2)
+            assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
+            results.append('renders SVG pieces and highlights opponent 1.e4 from/to squares')
+
             # Wrong-but-legal move must not advance the repertoire state.
             click_move(page, 'g8f6')
             expect(page.locator('#feedback')).to_contain_text('Not quite')
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('rejects off-repertoire legal move without advancing')
+
+            # Exercise drag-to-move, opponent highlight update, and history review.
+            page.locator('#reset-line').click()
+            expect(page.locator('#prompt')).to_contain_text('c6')
+            drag_move(page, 'c7c6')
+            expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="c7"]')).to_have_count(0)
+            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            assert is_highlighted(page, 'd2') and is_highlighted(page, 'd4')
+
+            # ArrowLeft rewinds without mutating training state; history is read-only.
+            page.keyboard.press('ArrowLeft')
+            expect(page.locator('.chessboard')).to_have_class(re.compile(r'board-readonly'))
+            expect(square(page, 'd7')).to_be_disabled()
+            expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="d2"]')).to_have_count(1)
+            assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
+
+            page.keyboard.press('ArrowLeft')
+            expect(page.locator('.piece[data-piece-square="c7"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="e4"]')).to_have_count(1)
+            page.keyboard.press('ArrowRight')
+            page.keyboard.press('ArrowRight')
+            expect(page.locator('.chessboard')).not_to_have_class(re.compile(r'board-readonly'))
+            expect(square(page, 'd7')).to_be_enabled()
+            expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
+            results.append('supports drag moves and read-only ArrowLeft/ArrowRight history review')
 
             # Complete line 1 once, grade it, then prove browser persistence.
             page.locator('#reset-line').click()
