@@ -12,6 +12,7 @@ export class TrainerApp {
     this.line = course.lines[0];
     this.lineIndex = 0;
     this.ply = 0;
+    this.viewPly = null;
     this.mistakesThisLine = 0;
     this.hintEnabled = true;
     this.lineFinished = false;
@@ -45,6 +46,12 @@ export class TrainerApp {
         <section class="trainer-grid">
           <div class="board-column">
             <div id="board" aria-label="Chess board"></div>
+            <div class="board-history" aria-label="Move navigation">
+              <button id="history-back" class="history-btn" type="button" aria-label="Previous move" aria-keyshortcuts="ArrowLeft">←</button>
+              <span id="history-status">Current position</span>
+              <button id="history-forward" class="history-btn" type="button" aria-label="Next move" aria-keyshortcuts="ArrowRight">→</button>
+              <span class="keyboard-hint">Keyboard ← →</span>
+            </div>
             <div class="board-actions">
               <button id="hint-toggle" class="secondary-btn" type="button">Hint: on</button>
               <button id="reset-line" class="secondary-btn" type="button">Restart line</button>
@@ -89,12 +96,26 @@ export class TrainerApp {
     this.root.querySelector('#reset-line').addEventListener('click', () => this.startLine(this.lineIndex));
     this.root.querySelector('#prev-line').addEventListener('click', () => this.startLine((this.lineIndex - 1 + this.course.lines.length) % this.course.lines.length));
     this.root.querySelector('#next-line').addEventListener('click', () => this.advanceLine());
+    this.root.querySelector('#history-back').addEventListener('click', () => this.navigateHistory(-1));
+    this.root.querySelector('#history-forward').addEventListener('click', () => this.navigateHistory(1));
     this.root.querySelector('#reset-progress').addEventListener('click', () => {
       resetProgress(this.course.id);
       this.progress = loadProgress(this.course.id);
       this.refresh();
     });
     this.root.querySelectorAll('[data-grade]').forEach(button => button.addEventListener('click', () => this.gradeLine(button.dataset.grade)));
+
+    window.addEventListener('keydown', event => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.navigateHistory(-1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.navigateHistory(1);
+      }
+    });
   }
 
   modeSubtitle(mode) {
@@ -132,6 +153,7 @@ export class TrainerApp {
     this.line = this.course.lines[index];
     this.chess.reset();
     this.ply = 0;
+    this.viewPly = null;
     this.mistakesThisLine = 0;
     this.lineFinished = false;
     this.board.clearSelection();
@@ -167,7 +189,7 @@ export class TrainerApp {
   }
 
   onUserMove(from, to) {
-    if (this.lineFinished || this.chess.turn() !== this.course.side) return;
+    if (this.viewPly !== null || this.lineFinished || this.chess.turn() !== this.course.side) return;
     const expected = this.line.moves[this.ply];
     const attempted = `${from}${to}`;
     if (!expected.startsWith(attempted)) {
@@ -179,7 +201,7 @@ export class TrainerApp {
       this.progress.lines[this.line.id] = p;
       saveProgress(this.course.id, this.progress);
       this.board.clearSelection();
-      this.refreshBoardHint();
+      this.refreshBoardState();
       return;
     }
 
@@ -196,6 +218,26 @@ export class TrainerApp {
     } catch (error) {
       this.showFeedback(`Illegal course move: ${error.message}`, 'wrong');
     }
+  }
+
+  navigateHistory(delta) {
+    const current = this.viewPly === null ? this.ply : this.viewPly;
+    const next = Math.max(0, Math.min(this.ply, current + delta));
+    if (next === current) return;
+    this.viewPly = next === this.ply ? null : next;
+    this.board.clearSelection();
+    this.refresh();
+  }
+
+  positionAtPly(ply) {
+    const chess = new MiniChess();
+    let lastOpponentMove = null;
+    for (let i = 0; i < ply; i += 1) {
+      const mover = chess.turn();
+      const move = chess.moveUci(this.line.moves[i]);
+      if (mover !== this.course.side) lastOpponentMove = { from: move.from, to: move.to };
+    }
+    return { chess, lastOpponentMove };
   }
 
   finishLine() {
@@ -232,7 +274,9 @@ export class TrainerApp {
     this.root.querySelector('#line-variation').textContent = this.line.variation;
 
     const prompt = this.root.querySelector('#prompt');
-    if (this.lineFinished) prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
+    if (this.viewPly !== null) {
+      prompt.innerHTML = `<strong>Reviewing this line.</strong><span>Position ${this.viewPly} of ${this.ply}. Use → to return to the current position.</span>`;
+    } else if (this.lineFinished) prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
     else if (this.chess.turn() === this.course.side && this.ply < this.line.moves.length) {
       const expected = this.line.moves[this.ply];
       const clue = this.mode === 'learn' || this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
@@ -242,12 +286,30 @@ export class TrainerApp {
     this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished);
     this.renderProgress();
     this.renderLineList();
-    this.refreshBoardHint();
+    this.refreshBoardState();
+    this.refreshHistoryControls();
   }
 
-  refreshBoardHint() {
-    const expected = !this.lineFinished && this.chess.turn() === this.course.side ? this.line.moves[this.ply] : null;
-    this.board.setExpectedMove(expected, this.hintEnabled || this.mode === 'learn');
+  refreshBoardState() {
+    const displayPly = this.viewPly === null ? this.ply : this.viewPly;
+    const { chess, lastOpponentMove } = this.positionAtPly(displayPly);
+    const live = this.viewPly === null;
+    this.board.setPosition(chess, {
+      lastMove: lastOpponentMove,
+      interactive: live && !this.lineFinished
+    });
+    const expected = live && !this.lineFinished && this.chess.turn() === this.course.side ? this.line.moves[this.ply] : null;
+    this.board.setExpectedMove(expected, live && (this.hintEnabled || this.mode === 'learn'));
+  }
+
+  refreshHistoryControls() {
+    const displayPly = this.viewPly === null ? this.ply : this.viewPly;
+    const back = this.root.querySelector('#history-back');
+    const forward = this.root.querySelector('#history-forward');
+    const status = this.root.querySelector('#history-status');
+    back.disabled = displayPly === 0;
+    forward.disabled = displayPly === this.ply;
+    status.textContent = this.viewPly === null ? 'Current position' : `Position ${displayPly} / ${this.ply}`;
   }
 
   clearFeedback() {
