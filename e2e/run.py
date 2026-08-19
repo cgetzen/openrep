@@ -30,21 +30,10 @@ def click_move(page, uci: str):
 
 
 def drag_move(page, uci: str):
-    """Exercise the same pointer-based drag behavior used by mouse/touch users."""
+    """Exercise pointer-based dragging with Playwright's real drag gesture."""
     source = page.locator(f'.piece[data-piece-square="{uci[:2]}"]')
     target = square(page, uci[2:4])
-    source_box = source.bounding_box()
-    target_box = target.bounding_box()
-    assert source_box and target_box, f'could not locate drag endpoints for {uci}'
-    sx = source_box['x'] + source_box['width'] / 2
-    sy = source_box['y'] + source_box['height'] / 2
-    tx = target_box['x'] + target_box['width'] / 2
-    ty = target_box['y'] + target_box['height'] / 2
-    page.mouse.move(sx, sy)
-    page.mouse.down()
-    page.mouse.move((sx + tx) / 2, (sy + ty) / 2, steps=4)
-    page.mouse.move(tx, ty, steps=4)
-    page.mouse.up()
+    source.drag_to(target, force=True)
 
 
 def is_highlighted(page, name: str) -> bool:
