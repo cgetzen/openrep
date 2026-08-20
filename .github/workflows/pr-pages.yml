@@ -1,9 +1,9 @@
 name: Deploy PR branch to GitHub Pages
 
 on:
-  push:
-    branches:
-      - agent/classic-pieces-move-explanations
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,11 +14,12 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: pages
+  group: pr-pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 2
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -33,6 +34,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Record deployed URL on PR #2
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
