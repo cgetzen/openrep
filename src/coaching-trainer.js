@@ -1,6 +1,7 @@
 import { TrainerApp } from './trainer.js?v=hint-toggle-v3';
 import { explainWrongMove } from './move-explanations.js';
 import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
+import { practiceRoutePresentation } from './practice-selection.js?v=practice-route-label-v1';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { classifyMoveQuality, formatMoveQualityLabel } from './evaluation.js?v=move-quality-v1';
 import { StockfishEvaluator } from './stockfish-evaluator.js?v=move-quality-v1';
@@ -19,6 +20,19 @@ export class CoachingTrainerApp extends TrainerApp {
   beginRoute(route, startPly = 0) {
     this.wrongMoveEvaluationRequest += 1;
     super.beginRoute(route, startPly);
+  }
+
+  practicePresentation() {
+    return practiceRoutePresentation(this.line, this.sessionRoute);
+  }
+
+  refresh() {
+    super.refresh();
+    if (this.mode !== 'practice' || this.practiceCaughtUp) return;
+
+    const presentation = this.practicePresentation();
+    this.root.querySelector('#line-title').textContent = presentation.title;
+    this.root.querySelector('#line-variation').textContent = presentation.variation;
   }
 
   renderShell() {
@@ -77,9 +91,13 @@ export class CoachingTrainerApp extends TrainerApp {
   }
 
   expectedMoveContext(expectedNotation) {
-    return this.isLearnResponseLesson()
-      ? `this response lesson is teaching ${expectedNotation}`
-      : `this rep is training “${this.line.title}.” Play ${expectedNotation} here`;
+    if (this.isLearnResponseLesson()) {
+      return `this response lesson is teaching ${expectedNotation}`;
+    }
+    const title = this.mode === 'practice'
+      ? this.practicePresentation().title
+      : this.line.title;
+    return `this rep is training “${title}.” Play ${expectedNotation} here`;
   }
 
   showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation) {

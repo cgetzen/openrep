@@ -1,7 +1,48 @@
+import { MiniChess } from './mini-chess.js';
+
 export const PRACTICE_SELECTIONS = Object.freeze(['spaced', 'weak']);
 
 export function normalizePracticeSelection(selection) {
   return PRACTICE_SELECTIONS.includes(selection) ? selection : 'spaced';
+}
+
+function formatRouteVariation(moves, plies) {
+  const chess = new MiniChess();
+  const tokens = [];
+  const limit = Math.min(Array.isArray(moves) ? moves.length : 0, Math.max(0, plies));
+
+  for (let ply = 0; ply < limit; ply += 1) {
+    const uci = moves[ply];
+    const san = chess.notationFor(uci);
+    if (chess.turn() === 'w') tokens.push(`${Math.floor(ply / 2) + 1}.${san}`);
+    else tokens.push(san);
+    chess.moveUci(uci);
+  }
+
+  return tokens.join(' ');
+}
+
+export function practiceRoutePresentation(line, route) {
+  const sourceTitle = line?.title ?? route?.label ?? 'Practice route';
+  const sourceVariation = line?.variation ?? '';
+  if (!route || route.kind === 'canonical') {
+    return { title: sourceTitle, variation: sourceVariation };
+  }
+
+  let title = sourceTitle;
+  if (route.kind === 'branch') {
+    title = route.label ?? sourceTitle;
+  } else if (route.kind === 'response') {
+    const ownerTitle = route.teachingOwnerTitle ?? sourceTitle;
+    const responseTitle = route.responseTopicLabel ?? route.label ?? 'Response';
+    title = responseTitle && responseTitle !== ownerTitle
+      ? `${ownerTitle} — ${responseTitle}`
+      : ownerTitle;
+  }
+
+  const divergencePly = Number.isInteger(route.divergencePly) ? route.divergencePly : 0;
+  const variation = formatRouteVariation(route.moves, divergencePly + 2) || sourceVariation;
+  return { title, variation };
 }
 
 export function pickSpacedLineIndex(lines, progress, now = Date.now()) {
