@@ -41,6 +41,48 @@ test('every full Caro-Kann line has a unique completion takeaway and primary mov
   assert.deepEqual(exactOnlyDecision.choices.map(choice => choice.role), ['primary']);
 });
 
+test('every Black decision in every Caro-Kann branch has a non-answer strategic cue', () => {
+  const index = new MoveTheoryIndex(courseWithTheory());
+  let decisionCount = 0;
+
+  for (const line of caroKann.lines) {
+    const chess = new MiniChess();
+    for (let ply = 0; ply < line.moves.length; ply += 1) {
+      const move = line.moves[ply];
+      if (chess.turn() === caroKann.side) {
+        const theory = index.theoryAt(miniChessToFen(chess), move);
+        assert.ok(theory?.cue, `${line.id} ply ${ply} is missing a decision cue`);
+        const answer = chess.notationFor(move);
+        assert.equal(
+          theory.cue.includes(answer),
+          false,
+          `${line.id} ply ${ply} cue reveals the expected move ${answer}`
+        );
+        decisionCount += 1;
+      }
+      chess.moveUci(move);
+    }
+  }
+
+  assert.equal(decisionCount, 83);
+});
+
+test('the same position can teach different strategic cues for different repertoire choices', () => {
+  const index = new MoveTheoryIndex(courseWithTheory());
+  const advance = caroKann.lines.find(line => line.id === 'advance-main');
+  const chess = new MiniChess();
+  for (const move of advance.moves.slice(0, 5)) chess.moveUci(move);
+  const position = miniChessToFen(chess);
+
+  const bishopCue = index.cueAt(position, 'c8f5');
+  const immediateBreakCue = index.cueAt(position, 'c6c5');
+  assert.ok(bishopCue);
+  assert.ok(immediateBreakCue);
+  assert.notEqual(bishopCue, immediateBreakCue);
+  assert.match(bishopCue, /light bishop/);
+  assert.match(immediateBreakCue, /Challenge d4 immediately/);
+});
+
 test('terminal decision keeps primary repertoire move separate from accepted moves', () => {
   const index = new MoveTheoryIndex(courseWithTheory());
   const decision = index.decisionForLine('early-nf3', 11);
@@ -81,6 +123,7 @@ test('move theory identity follows canonical position rather than move order', (
       {
         anchor: { lineId: 'a', ply: 6 },
         move: 'f1c4',
+        cue: 'Develop actively toward the vulnerable kingside.',
         rationale: 'Develop with pressure on f7.'
       }
     ],
@@ -93,6 +136,18 @@ test('move theory identity follows canonical position rather than move order', (
   const theory = index.theoryAt(miniChessToFen(chess), 'f1c4');
   assert.ok(theory);
   assert.equal(theory.notation, 'Bc4');
+  assert.match(theory.cue, /Develop actively/);
+});
+
+test('shared authoring anchors collapse into one canonical move theory record', () => {
+  const index = new MoveTheoryIndex(courseWithTheory());
+  const chess = new MiniChess();
+  chess.moveUci('e2e4');
+
+  const theory = index.theoryAt(miniChessToFen(chess), 'c7c6');
+  assert.ok(theory);
+  assert.equal(theory.cue, 'Prepare to challenge White’s center with ...d5.');
+  assert.equal(theory.authoringAnchors.length, caroKann.lines.length);
 });
 
 test('lesson decisions fail fast when an accepted move has no theory', () => {
@@ -106,14 +161,18 @@ test('lesson decisions fail fast when an accepted move has no theory', () => {
   );
 });
 
-test('duplicate theory for the same position and move is rejected', () => {
-  const duplicate = { ...caroKannMoveTheory[0] };
+test('conflicting teaching copy for the same position and move is rejected', () => {
+  const conflict = {
+    ...caroKannMoveTheory[0],
+    anchor: { lineId: 'advance-tal', ply: 1 },
+    cue: 'A conflicting strategic instruction.'
+  };
   const course = courseWithTheory({
-    moveTheory: [...caroKannMoveTheory, duplicate]
+    moveTheory: [...caroKannMoveTheory, conflict]
   });
 
   assert.throws(
     () => new MoveTheoryIndex(course),
-    /Duplicate move theory identity/
+    /Conflicting move theory cue/
   );
 });
