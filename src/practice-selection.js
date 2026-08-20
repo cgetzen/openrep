@@ -6,14 +6,16 @@ export function normalizePracticeSelection(selection) {
 
 export function pickSpacedLineIndex(lines, progress, now = Date.now()) {
   const lineProgress = progress?.lines ?? {};
-  return lines.map((line, index) => {
+  const due = lines.map((line, index) => {
     const current = lineProgress[line.id];
     return {
       index,
       dueAt: current?.dueAt ?? now,
       repetitions: current?.repetitions ?? 0
     };
-  }).sort((a, b) => a.dueAt - b.dueAt || a.repetitions - b.repetitions)[0]?.index ?? 0;
+  }).filter(item => item.dueAt <= now);
+
+  return due.sort((a, b) => a.dueAt - b.dueAt || a.repetitions - b.repetitions)[0]?.index ?? null;
 }
 
 export function pickWeakLineIndex(lines, progress, random = Math.random) {
