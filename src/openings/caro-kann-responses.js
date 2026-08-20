@@ -1,7 +1,9 @@
 export const caroKannResponses = [
   {
     id: 'advance-quiet-be2',
+    source: 'curated',
     anchor: { lineId: 'advance-main', ply: 6 },
+    teachingOwnerLineId: 'advance-main',
     move: 'f1e2',
     response: 'e7e6',
     continuation: ['g1f3', 'c6c5'],
@@ -11,7 +13,9 @@ export const caroKannResponses = [
   },
   {
     id: 'classical-bd3',
+    source: 'curated',
     anchor: { lineId: 'classical-main', ply: 8 },
+    teachingOwnerLineId: 'classical-main',
     move: 'f1d3',
     response: 'e7e6',
     continuation: ['g1f3', 'b8d7'],
@@ -21,7 +25,9 @@ export const caroKannResponses = [
   },
   {
     id: 'exchange-nf3',
+    source: 'curated',
     anchor: { lineId: 'exchange-main', ply: 6 },
+    teachingOwnerLineId: 'exchange-main',
     move: 'g1f3',
     response: 'b8c6',
     continuation: ['f1d3', 'g8f6'],
@@ -31,7 +37,9 @@ export const caroKannResponses = [
   },
   {
     id: 'panov-nf3-first',
+    source: 'curated',
     anchor: { lineId: 'panov-main', ply: 8 },
+    teachingOwnerLineId: 'panov-main',
     move: 'g1f3',
     response: 'e7e6',
     continuation: ['b1c3', 'f8b4'],
@@ -41,7 +49,9 @@ export const caroKannResponses = [
   },
   {
     id: 'two-knights-be2',
+    source: 'curated',
     anchor: { lineId: 'two-knights', ply: 6 },
+    teachingOwnerLineId: 'two-knights',
     move: 'f1e2',
     response: 'b8d7',
     continuation: ['d2d4', 'e7e6'],

@@ -25,7 +25,8 @@ def run():
             page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load')
             expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()
 
-            # Reach the first meaningful Advance branching position.
+            # Reach the first meaningful Advance branching position in the response's
+            # canonical teaching owner.
             for move in ['c7c6', 'd7d5', 'c8f5']:
                 expect(page.locator('#prompt')).to_contain_text('Your move as Black')
                 click_move(page, move)
@@ -42,6 +43,25 @@ def run():
             expect(covered).to_contain_text('Covered elsewhere')
             expect(covered).to_contain_text('Advance — h4 / Tal ideas')
             expect(covered.get_by_role('button', name='Learn lesson')).to_be_visible()
+
+            # Regression: the same position is also reached by the Tal lesson. The
+            # canonical Be2 response must not be presented as another New response
+            # there; it is owned/taught by Advance — Main setup exactly once.
+            ownership_page = browser.new_page(viewport={"width": 1280, "height": 900})
+            ownership_page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load')
+            ownership_page.locator('[data-line-index="1"]').click()
+            expect(ownership_page.locator('#line-title')).to_have_text('Advance — h4 / Tal ideas')
+            for move in ['c7c6', 'd7d5', 'c8f5']:
+                expect(ownership_page.locator('#prompt')).to_contain_text('Your move as Black')
+                click_move(ownership_page, move)
+
+            tal_options = ownership_page.locator('#opponent-options')
+            tal_be2 = tal_options.locator('[data-opponent-move="4.Be2"]')
+            expect(tal_be2).to_contain_text('Covered elsewhere')
+            expect(tal_be2).to_contain_text('Advance — Main setup')
+            expect(tal_be2).not_to_contain_text('New response')
+            expect(tal_be2.get_by_role('button', name='Learn lesson')).to_be_visible()
+            ownership_page.close()
 
             # Finish the canonical lesson first. The end state must surface only
             # genuinely new responses, even though covered branches were shown inline.
@@ -119,7 +139,7 @@ def run():
             expect(page.locator('#grading')).to_be_visible()
 
             browser.close()
-            print('opponent response Learn/Practice flow passed')
+            print('opponent response ownership Learn/Practice flow passed')
     finally:
         server.shutdown()
         server.server_close()
