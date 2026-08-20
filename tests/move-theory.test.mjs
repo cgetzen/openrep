@@ -33,11 +33,11 @@ test('terminal decision keeps primary repertoire move separate from accepted mov
 test('move theory identity follows canonical position rather than move order', () => {
   const lineA = {
     id: 'a',
-    moves: ['g1f3', 'g8f6', 'e2e4', 'e7e5', 'f1c4']
+    moves: ['g1f3', 'g8f6', 'b1c3', 'b8c6', 'e2e4', 'e7e5', 'f1c4']
   };
   const lineB = {
     id: 'b',
-    moves: ['e2e4', 'e7e5', 'g1f3', 'g8f6', 'b1c3']
+    moves: ['b1c3', 'b8c6', 'g1f3', 'g8f6', 'e2e4', 'e7e5', 'f1c4']
   };
   const course = {
     id: 'theory-transposition',
@@ -45,7 +45,7 @@ test('move theory identity follows canonical position rather than move order', (
     lines: [lineA, lineB],
     moveTheory: [
       {
-        anchor: { lineId: 'a', ply: 4 },
+        anchor: { lineId: 'a', ply: 6 },
         move: 'f1c4',
         rationale: 'Develop with pressure on f7.'
       }
@@ -54,7 +54,7 @@ test('move theory identity follows canonical position rather than move order', (
   };
   const index = new MoveTheoryIndex(course);
   const chess = new MiniChess();
-  for (const move of lineB.moves.slice(0, 4)) chess.moveUci(move);
+  for (const move of lineB.moves.slice(0, 6)) chess.moveUci(move);
 
   const theory = index.theoryAt(miniChessToFen(chess), 'f1c4');
   assert.ok(theory);
