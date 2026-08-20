@@ -24,22 +24,30 @@
 .square.hint-to::after,
 .square.hint-to.legal-target::after { display: none; }
 
-/* Classic/simple piece treatment: restrained contrast, thin outlines, no glossy shadow. */
+/* Standard Cburnett Staunton pieces. The original inline trainer SVG remains in
+   the DOM for interaction/test stability, but is hidden on board squares. */
 .piece {
-  --piece-fill: #f4f2ec;
-  --piece-stroke: #4d4b46;
-  width: 84%;
-  height: 84%;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+  width: 92%;
+  height: 92%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: none;
   z-index: 5;
 }
-.piece-b {
-  --piece-fill: #2f302d;
-  --piece-stroke: #171815;
-  filter: none;
-}
-.piece-b .piece-detail { fill: #d6d5cf; }
-.piece-w .piece-detail { fill: #4d4b46; }
+.square .piece-svg-classic { opacity: 0; }
+.square[aria-label$=" wp"] .piece { background-image: url('./pieces/cburnett/wP.svg'); }
+.square[aria-label$=" wn"] .piece { background-image: url('./pieces/cburnett/wN.svg'); }
+.square[aria-label$=" wb"] .piece { background-image: url('./pieces/cburnett/wB.svg'); }
+.square[aria-label$=" wr"] .piece { background-image: url('./pieces/cburnett/wR.svg'); }
+.square[aria-label$=" wq"] .piece { background-image: url('./pieces/cburnett/wQ.svg'); }
+.square[aria-label$=" wk"] .piece { background-image: url('./pieces/cburnett/wK.svg'); }
+.square[aria-label$=" bp"] .piece { background-image: url('./pieces/cburnett/bP.svg'); }
+.square[aria-label$=" bn"] .piece { background-image: url('./pieces/cburnett/bN.svg'); }
+.square[aria-label$=" bb"] .piece { background-image: url('./pieces/cburnett/bB.svg'); }
+.square[aria-label$=" br"] .piece { background-image: url('./pieces/cburnett/bR.svg'); }
+.square[aria-label$=" bq"] .piece { background-image: url('./pieces/cburnett/bQ.svg'); }
+.square[aria-label$=" bk"] .piece { background-image: url('./pieces/cburnett/bK.svg'); }
 
 /* Lichess-like teaching arrow: slim translucent shaft, compact triangular head,
    and layered beneath pieces so it reads as annotation rather than UI chrome. */
