@@ -1,4 +1,4 @@
-import { TrainerApp } from './trainer.js?v=response-learning-v2';
+import { TrainerApp } from './trainer.js?v=hint-toggle-v3';
 import { explainWrongMove } from './move-explanations.js';
 import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';

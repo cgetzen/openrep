@@ -49,8 +49,9 @@ def run():
             lines = get_course_lines(page, injected)
             now = page.evaluate('Date.now()')
             future = now + 24 * 60 * 60 * 1000
+            scheduled_line = lines[-1]
             progress = {
-                'discovered': [line['id'] for line in lines],
+                'discovered': [scheduled_line['id']],
                 'lines': {
                     line['id']: {
                         'repetitions': 1,
@@ -65,7 +66,7 @@ def run():
                 },
                 'totalSessions': len(lines),
             }
-            progress['lines'][lines[-1]['id']]['dueAt'] = now - 1000
+            progress['lines'][scheduled_line['id']]['dueAt'] = now - 1000
             storage_key = f'openrep:v1:{course_id(page, injected)}'
             page.evaluate(
                 '([key, value]) => localStorage.setItem(key, value)',
@@ -75,16 +76,30 @@ def run():
 
             practice = page.get_by_role('button', name='Practice test your recall')
             practice.click()
-            expect(page.locator('#line-title')).to_have_text(lines[-1]['title'])
+            expect(page.locator('#line-title')).to_have_text(scheduled_line['title'])
             expect(page.locator('#line-counter')).to_contain_text('PRACTICE · SPACED')
 
-            for uci in lines[-1]['moves'][1::2]:
-                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            # Practice may intentionally sample a learned alternate route for this
+            # scheduled line. Follow the route the UI presents instead of hard-coding
+            # canonical branch moves; this test is about scheduling and completion.
+            prompt = page.locator('#prompt')
+            for _ in range(20):
+                expect(prompt).to_have_text(re.compile(r'(Your move as Black|Complete)'))
+                if 'Complete' in prompt.inner_text():
+                    break
+
+                hint_from = page.locator('.square.hint-from')
+                hint_to = page.locator('.square.hint-to')
+                expect(hint_from).to_have_count(1)
+                expect(hint_to).to_have_count(1)
+                uci = f"{hint_from.get_attribute('data-square')}{hint_to.get_attribute('data-square')}"
                 print(f'spaced regression move: {uci}', flush=True)
                 click_move(page, uci)
                 expect(page.locator('#feedback')).not_to_have_class(re.compile(r'\bwrong\b'))
+            else:
+                raise AssertionError('Practice route did not complete within 20 user moves')
 
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect(prompt).to_contain_text('Complete')
             next_button = page.locator('#next-line')
             expect(next_button).to_be_disabled()
             expect(next_button).to_have_text('Grade to continue')
