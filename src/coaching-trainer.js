@@ -20,6 +20,7 @@ export class CoachingTrainerApp extends TrainerApp {
     this.evaluationRequest = 0;
     this.wrongMoveEvaluationRequest = 0;
     this.evaluationBar = null;
+    this.preservePromptDuringAcceptedMoveRefresh = false;
   }
 
   beginRoute(route, startPly = 0) {
@@ -52,7 +53,16 @@ export class CoachingTrainerApp extends TrainerApp {
   }
 
   refresh() {
+    const prompt = this.root.querySelector('#prompt');
+    const preservedPrompt = this.preservePromptDuringAcceptedMoveRefresh && prompt
+      ? prompt.innerHTML
+      : null;
+
     super.refresh();
+
+    if (preservedPrompt !== null && !this.lineFinished && this.chess.turn() !== this.course.side) {
+      prompt.innerHTML = preservedPrompt;
+    }
     if (this.mode === 'practice' && !this.practiceCaughtUp) {
       const presentation = this.practicePresentation();
       this.root.querySelector('#line-title').textContent = presentation.title;
@@ -324,7 +334,12 @@ export class CoachingTrainerApp extends TrainerApp {
 
     if (classification.kind === 'expected') {
       this.wrongMoveEvaluationRequest += 1;
-      super.onUserMove(from, to);
+      this.preservePromptDuringAcceptedMoveRefresh = true;
+      try {
+        super.onUserMove(from, to);
+      } finally {
+        this.preservePromptDuringAcceptedMoveRefresh = false;
+      }
       return;
     }
 
