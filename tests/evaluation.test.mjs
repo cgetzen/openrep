@@ -129,3 +129,14 @@ test('uses Blunder when a move allows forced mate against the mover', () => {
   assert.equal(quality.classification, 'Blunder');
   assert.equal(quality.scoreDifference, 'allowed mate');
 });
+
+test('omits empty score-difference parentheses from move-quality labels', () => {
+  assert.equal(
+    formatMoveQualityLabel({ classification: 'Best', scoreDifference: '' }),
+    'Best'
+  );
+  assert.equal(
+    formatMoveQualityLabel({ classification: 'Best', scoreDifference: null }),
+    'Best'
+  );
+});
