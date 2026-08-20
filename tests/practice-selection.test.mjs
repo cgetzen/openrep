@@ -28,13 +28,35 @@ test('spaced practice chooses the earliest due line and breaks ties by repetitio
       a: { dueAt: 500, repetitions: 2 },
       b: { dueAt: 100, repetitions: 3 },
       c: { dueAt: 100, repetitions: 1 },
-      d: { dueAt: 900, repetitions: 0 },
-      e: { dueAt: 700, repetitions: 0 }
+      d: { dueAt: 1900, repetitions: 0 },
+      e: { dueAt: 1700, repetitions: 0 }
     }
   };
 
   assert.equal(pickSpacedLineIndex(lines, progress, 1000), 2);
   assert.equal(pickPracticeLineIndex(lines, progress, 'spaced', { now: 1000 }), 2);
+});
+
+test('spaced practice returns no item when every scheduled review is in the future', () => {
+  const progress = {
+    lines: Object.fromEntries(lines.map((line, index) => [
+      line.id,
+      { dueAt: 2000 + index, repetitions: index }
+    ]))
+  };
+
+  assert.equal(pickSpacedLineIndex(lines, progress, 1000), null);
+  assert.equal(pickPracticeLineIndex(lines, progress, 'spaced', { now: 1000 }), null);
+});
+
+test('unseen lines remain immediately due in spaced practice', () => {
+  const progress = {
+    lines: {
+      a: { dueAt: 2000, repetitions: 1 }
+    }
+  };
+
+  assert.equal(pickSpacedLineIndex(lines, progress, 1000), 1);
 });
 
 test('weak practice samples only from the weakest four lines', () => {
