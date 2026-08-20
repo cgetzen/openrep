@@ -15,6 +15,32 @@ function courseWithTheory(overrides = {}) {
   };
 }
 
+test('every full Caro-Kann line has a unique completion takeaway and primary move theory', () => {
+  const index = new MoveTheoryIndex(courseWithTheory());
+  const decisions = caroKann.lines.map(line => {
+    const terminalPly = line.moves.length - 1;
+    const decision = index.decisionForLine(line.id, terminalPly);
+    assert.ok(decision, `${line.id} is missing a completion lesson`);
+    assert.equal(decision.primaryMove, line.moves[terminalPly]);
+    assert.equal(decision.choices[0].role, 'primary');
+    assert.ok(decision.choices[0].theory.rationale.length > 0);
+    return decision;
+  });
+
+  assert.equal(decisions.length, caroKann.lines.length);
+  assert.equal(new Set(decisions.map(decision => decision.objective)).size, caroKann.lines.length);
+
+  const decisionsWithAcceptedMoves = decisions.filter(decision => decision.acceptedMoves.length > 0);
+  assert.deepEqual(
+    decisionsWithAcceptedMoves.map(decision => [decision.lineId, decision.acceptedMoves]),
+    [['early-nf3', ['c8g4']]]
+  );
+
+  const exactOnlyDecision = index.decisionForLine('advance-main', 13);
+  assert.deepEqual(exactOnlyDecision.acceptedMoves, []);
+  assert.deepEqual(exactOnlyDecision.choices.map(choice => choice.role), ['primary']);
+});
+
 test('terminal decision keeps primary repertoire move separate from accepted moves', () => {
   const index = new MoveTheoryIndex(courseWithTheory());
   const decision = index.decisionForLine('early-nf3', 11);
