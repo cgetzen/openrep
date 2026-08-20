@@ -22,3 +22,14 @@ export function formatEvaluation(score) {
   if (Math.abs(pawns) < 0.005) return 'Equal';
   return pawns > 0 ? `White +${pawns.toFixed(2)}` : `Black +${Math.abs(pawns).toFixed(2)}`;
 }
+
+export function formatCompactEvaluation(score) {
+  if (!score) return '';
+  if (score.type === 'mate') {
+    if (score.value === 0) return 'M';
+    return score.value > 0 ? `M${score.value}` : `-M${Math.abs(score.value)}`;
+  }
+  const pawns = score.value / 100;
+  if (Math.abs(pawns) < 0.005) return '0.00';
+  return `${pawns > 0 ? '+' : ''}${pawns.toFixed(2)}`;
+}

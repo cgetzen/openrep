@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { miniChessToFen } from '../src/position-fen.js';
-import { parseUciScore, scoreToWhiteShare, formatEvaluation } from '../src/evaluation.js';
+import { parseUciScore, scoreToWhiteShare, formatEvaluation, formatCompactEvaluation } from '../src/evaluation.js';
 
 function startChess() {
   const board = new Map();
@@ -61,4 +61,12 @@ test('maps advantages symmetrically and keeps the bar bounded', () => {
 test('formats centipawn and mate evaluations for accessibility text', () => {
   assert.equal(formatEvaluation({ type: 'cp', value: -125 }), 'Black +1.25');
   assert.equal(formatEvaluation({ type: 'mate', value: 4 }), 'White mate in 4');
+});
+
+test('formats compact scores for the visible evaluation bar', () => {
+  assert.equal(formatCompactEvaluation({ type: 'cp', value: 42 }), '+0.42');
+  assert.equal(formatCompactEvaluation({ type: 'cp', value: -125 }), '-1.25');
+  assert.equal(formatCompactEvaluation({ type: 'cp', value: 0 }), '0.00');
+  assert.equal(formatCompactEvaluation({ type: 'mate', value: 3 }), 'M3');
+  assert.equal(formatCompactEvaluation({ type: 'mate', value: -2 }), '-M2');
 });

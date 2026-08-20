@@ -41,6 +41,40 @@
   pointer-events: none;
 }
 
+.evaluation-score {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%) rotate(-90deg);
+  transform-origin: center;
+}
+
+.evaluation-score:empty { display: none; }
+.evaluation-bar[data-orientation="w"][data-score-side="white"] .evaluation-score {
+  bottom: 18px;
+  color: #242522;
+}
+.evaluation-bar[data-orientation="w"][data-score-side="black"] .evaluation-score {
+  top: 18px;
+  color: #f2f2ee;
+}
+.evaluation-bar[data-orientation="b"][data-score-side="white"] .evaluation-score {
+  top: 18px;
+  color: #242522;
+}
+.evaluation-bar[data-orientation="b"][data-score-side="black"] .evaluation-score {
+  bottom: 18px;
+  color: #f2f2ee;
+}
+
 @media (max-width: 560px) {
   .board-stage { grid-template-columns: 11px minmax(0, 1fr); gap: 4px; }
+  .evaluation-score { font-size: 8px; }
 }

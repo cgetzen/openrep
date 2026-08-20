@@ -1,4 +1,4 @@
-const assetVersion = 'eval-bar-v1';
+const assetVersion = 'eval-bar-v2';
 for (const file of ['./style.css', './coach-overrides.css', './evaluation-bar.css']) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
