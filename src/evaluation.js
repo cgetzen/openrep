@@ -95,5 +95,6 @@ export function classifyMoveQuality(beforeScore, moveScore, side) {
 
 export function formatMoveQualityLabel(quality) {
   if (!quality) return '';
-  return `${quality.classification} (${quality.scoreDifference})`;
+  const difference = String(quality.scoreDifference ?? '').trim();
+  return difference ? `${quality.classification} (${difference})` : quality.classification;
 }

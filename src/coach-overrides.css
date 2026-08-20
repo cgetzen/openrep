@@ -140,3 +140,87 @@
 .branch-more-tooltip-item + .branch-more-tooltip-item {
   margin-top: 3px;
 }
+
+/* A completed strategic decision remains part of the lesson card rather than
+   becoming a separate results screen. The same component is used in Learn and
+   Practice so completion education cannot drift between modes. Keep every
+   surface within the app's dark palette so inherited foreground text retains
+   strong contrast instead of becoming light-on-light. */
+.completion-theory {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+.completion-theory-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.completion-theory-heading > span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.completion-theory-heading > strong {
+  color: #f4f3ed;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.completion-theory-list {
+  display: grid;
+  gap: 8px;
+}
+.completion-theory-choice {
+  padding: 10px 11px;
+  border: 1px solid #384034;
+  border-radius: 9px;
+  background: #171a15;
+}
+.completion-theory-choice.played {
+  border-color: #7f955b;
+  box-shadow: inset 3px 0 0 #9ab95c;
+}
+.completion-theory-choice-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.completion-theory-choice-title > strong {
+  color: #f4f3ed;
+  font-size: 1rem;
+}
+.completion-theory-choice p {
+  margin: 5px 0 0;
+  color: #cfd4c7;
+  font-size: .9rem;
+  line-height: 1.42;
+}
+.completion-theory-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.completion-theory-badge.primary {
+  background: var(--accent);
+  color: #11130f;
+}
+.completion-theory-badge.accepted {
+  border: 1px solid #566150;
+  background: #343b31;
+  color: #f4f3ed;
+}
+.completion-theory-badge.played {
+  background: var(--accent-soft);
+  color: #11130f;
+}
