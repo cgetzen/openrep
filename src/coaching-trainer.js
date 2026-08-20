@@ -1,5 +1,6 @@
 import { TrainerApp } from './trainer.js?v=hint-toggle-v3';
 import { MiniChess } from './mini-chess.js';
+import { miniChessToFen } from './position-fen.js';
 import { explainWrongMove } from './move-explanations.js';
 import { MoveTheoryIndex } from './move-theory.js?v=terminal-theory-v1';
 import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
@@ -25,6 +26,25 @@ export class CoachingTrainerApp extends TrainerApp {
     this.completedTerminalMove = null;
     this.wrongMoveEvaluationRequest += 1;
     super.beginRoute(route, startPly);
+  }
+
+  startResponseLesson(routeId) {
+    const completedTerminalMove = this.completedTerminalMove
+      ? { ...this.completedTerminalMove }
+      : null;
+    super.startResponseLesson(routeId);
+    if (this.responseReturn) this.responseReturn.completedTerminalMove = completedTerminalMove;
+  }
+
+  returnToLesson() {
+    const completedTerminalMove = this.responseReturn?.completedTerminalMove
+      ? { ...this.responseReturn.completedTerminalMove }
+      : null;
+    super.returnToLesson();
+    if (completedTerminalMove) {
+      this.completedTerminalMove = completedTerminalMove;
+      this.refresh();
+    }
   }
 
   practicePresentation() {
@@ -178,15 +198,29 @@ export class CoachingTrainerApp extends TrainerApp {
   }
 
   terminalDecision() {
-    if (this.sessionRoute?.kind !== 'canonical') return null;
     const terminalPly = (this.sessionRoute?.moves?.length ?? 0) - 1;
     if (terminalPly < 0) return null;
-    return this.moveTheory.decisionForLine(this.line.id, terminalPly);
+
+    if (this.sessionRoute?.kind === 'canonical') {
+      return this.moveTheory.decisionForLine(this.line.id, terminalPly);
+    }
+
+    if (this.sessionRoute?.kind === 'branch' && this.sessionRoute.targetLineId) {
+      const { chess } = super.positionAtPly(terminalPly);
+      return this.moveTheory.decisionForLinePosition(
+        this.sessionRoute.targetLineId,
+        miniChessToFen(chess),
+        this.sessionRoute.moves[terminalPly]
+      );
+    }
+
+    return null;
   }
 
   currentAcceptedTerminalDecision(attempted) {
     const decision = this.terminalDecision();
-    if (!decision || this.ply !== decision.ply || this.ply !== this.sessionRoute.moves.length - 1) return null;
+    const terminalPly = (this.sessionRoute?.moves?.length ?? 0) - 1;
+    if (!decision || this.ply !== terminalPly) return null;
     return decision.acceptedMoves.includes(attempted) ? decision : null;
   }
 
@@ -207,7 +241,10 @@ export class CoachingTrainerApp extends TrainerApp {
   finishLine() {
     const decision = this.terminalDecision();
     if (decision && !this.completedTerminalMove) {
-      this.completedTerminalMove = { ply: decision.ply, move: decision.primaryMove };
+      this.completedTerminalMove = {
+        ply: (this.sessionRoute?.moves?.length ?? 1) - 1,
+        move: decision.primaryMove
+      };
     }
     super.finishLine();
   }
