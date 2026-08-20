@@ -67,7 +67,8 @@ export class CoachingTrainerApp extends TrainerApp {
     const grading = this.root.querySelector('#grading');
     const completion = document.createElement('section');
     completion.id = 'completion-theory';
-    completion.className = 'completion-theory hidden';
+    completion.className = 'completion-theory';
+    completion.hidden = true;
     completion.setAttribute('aria-label', 'What to remember');
     grading.before(completion);
 
@@ -256,7 +257,7 @@ export class CoachingTrainerApp extends TrainerApp {
     const decision = this.lineFinished && !this.practiceCaughtUp && !this.isLearnResponseLesson()
       ? this.terminalDecision()
       : null;
-    panel.classList.toggle('hidden', !decision);
+    panel.hidden = !decision;
     panel.replaceChildren();
     if (!decision) return;
 
