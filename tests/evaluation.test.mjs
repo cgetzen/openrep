@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { miniChessToFen } from '../src/position-fen.js';
-import { parseUciScore, scoreToWhiteShare, formatEvaluation, formatCompactEvaluation } from '../src/evaluation.js';
+import {
+  parseUciScore,
+  scoreToWhiteShare,
+  formatEvaluation,
+  formatCompactEvaluation,
+  formatMoveScoreDifference,
+  classifyMoveQuality,
+  formatMoveQualityLabel
+} from '../src/evaluation.js';
 
 function startChess() {
   const board = new Map();
@@ -69,4 +77,55 @@ test('formats unsigned compact scores for placement-based advantage display', ()
   assert.equal(formatCompactEvaluation({ type: 'cp', value: 0 }), '0.00');
   assert.equal(formatCompactEvaluation({ type: 'mate', value: 3 }), 'M3');
   assert.equal(formatCompactEvaluation({ type: 'mate', value: -2 }), 'M2');
+});
+
+test('formats mover-relative score differences with a stable sign', () => {
+  assert.equal(formatMoveScoreDifference(-125), '-1.25');
+  assert.equal(formatMoveScoreDifference(25), '+0.25');
+  assert.equal(formatMoveScoreDifference(-0), '0.00');
+});
+
+test('classifies centipawn losses into move-quality bands', () => {
+  const before = { type: 'cp', value: 80 };
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: 75 }, 'w').classification, 'Best');
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: 60 }, 'w').classification, 'Excellent');
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: 40 }, 'w').classification, 'Good');
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: 0 }, 'w').classification, 'Inaccuracy');
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: -70 }, 'w').classification, 'Mistake');
+  assert.equal(classifyMoveQuality(before, { type: 'cp', value: -170 }, 'w').classification, 'Blunder');
+});
+
+test('computes score difference from the mover perspective for Black', () => {
+  const quality = classifyMoveQuality(
+    { type: 'cp', value: -50 },
+    { type: 'cp', value: 75 },
+    'b'
+  );
+  assert.deepEqual(quality, {
+    classification: 'Mistake',
+    scoreDifference: '-1.25',
+    deltaCentipawns: -125
+  });
+  assert.equal(formatMoveQualityLabel(quality), 'Mistake (-1.25)');
+});
+
+test('uses Miss when a forced mate or decisive winning opportunity is lost', () => {
+  assert.equal(
+    classifyMoveQuality({ type: 'mate', value: 3 }, { type: 'cp', value: 450 }, 'w').classification,
+    'Miss'
+  );
+  assert.equal(
+    classifyMoveQuality({ type: 'cp', value: 450 }, { type: 'cp', value: 50 }, 'w').classification,
+    'Miss'
+  );
+});
+
+test('uses Blunder when a move allows forced mate against the mover', () => {
+  const quality = classifyMoveQuality(
+    { type: 'cp', value: -25 },
+    { type: 'mate', value: 2 },
+    'b'
+  );
+  assert.equal(quality.classification, 'Blunder');
+  assert.equal(quality.scoreDifference, 'allowed mate');
 });
