@@ -31,7 +31,7 @@ jobs:
       issues: write
       pull-requests: write
     environment:
-      name: github-pages
+      name: pr-preview-2
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
