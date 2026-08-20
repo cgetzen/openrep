@@ -16,9 +16,11 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def mount_fixture(page, fixture_id: str, mode: str):
+def mount_fixture(page, fixture_id: str, mode: str, accepted_moves=None):
+    if accepted_moves is None:
+        accepted_moves = ['c7c5', 'e7e5']
     page.evaluate(
-        """async ({fixtureId, mode}) => {
+        """async ({fixtureId, mode, acceptedMoves}) => {
           document.querySelector(`#${fixtureId}`)?.remove();
           const { CoachingTrainerApp } = await import('./src/coaching-trainer.js?v=terminal-theory-v1');
           const root = document.createElement('div');
@@ -59,7 +61,7 @@ def mount_fixture(page, fixture_id: str, mode: str):
               id: 'terminal-center-choice',
               anchor: {lineId: 'line', ply: 1},
               objective: 'Challenge White’s center immediately.',
-              acceptedMoves: ['c7c5', 'e7e5']
+              acceptedMoves
             }]
           };
           const app = new CoachingTrainerApp(root, course, {evaluator: null});
@@ -70,7 +72,7 @@ def mount_fixture(page, fixture_id: str, mode: str):
           }
           window[fixtureId] = app;
         }""",
-        {'fixtureId': fixture_id, 'mode': mode}
+        {'fixtureId': fixture_id, 'mode': mode, 'acceptedMoves': accepted_moves}
     )
     page.wait_for_function(
         "fixtureId => window[fixtureId]?.ply === 1 && window[fixtureId]?.chess.turn() === 'b'",
@@ -78,10 +80,10 @@ def mount_fixture(page, fixture_id: str, mode: str):
     )
 
 
-def complete_accepted_move(page, fixture_id: str):
+def complete_move(page, fixture_id: str, from_square: str, to_square: str):
     page.evaluate(
-        "fixtureId => window[fixtureId].onUserMove('c7', 'c5')",
-        fixture_id
+        "([fixtureId, fromSquare, toSquare]) => window[fixtureId].onUserMove(fromSquare, toSquare)",
+        [fixture_id, from_square, to_square]
     )
     page.wait_for_function(
         "fixtureId => window[fixtureId]?.lineFinished === true",
@@ -161,9 +163,13 @@ def run():
             page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load')
 
             mount_fixture(page, 'learn-terminal-fixture', 'learn')
-            complete_accepted_move(page, 'learn-terminal-fixture')
             learn = page.locator('#learn-terminal-fixture')
             learn_panel = learn.locator('#completion-theory')
+            expect(learn_panel).to_be_hidden()
+            assert learn_panel.get_attribute('hidden') is not None
+            checks.append('completion teaching occupies no visible box before the line is complete')
+
+            complete_move(page, 'learn-terminal-fixture', 'c7', 'c5')
             expect(learn_panel).to_be_visible()
             expect(learn_panel).to_contain_text('What to remember')
             expect(learn_panel).to_contain_text('Challenge White’s center immediately.')
@@ -184,8 +190,21 @@ def run():
             assert all(value >= 4.5 for value in ratios.values()), ratios
             checks.append('completion panel text and badges meet at least 4.5:1 contrast')
 
+            mount_fixture(page, 'exact-terminal-fixture', 'learn', accepted_moves=[])
+            exact = page.locator('#exact-terminal-fixture')
+            exact_panel = exact.locator('#completion-theory')
+            expect(exact_panel).to_be_hidden()
+            complete_move(page, 'exact-terminal-fixture', 'd7', 'd5')
+            expect(exact_panel).to_be_visible()
+            expect(exact_panel).to_contain_text('What to remember')
+            expect(exact_panel).to_contain_text('d5')
+            expect(exact_panel).to_contain_text('Primary')
+            expect(exact_panel.locator('.completion-theory-choice.accepted')).to_have_count(0)
+            expect(exact_panel).not_to_contain_text('Also works')
+            checks.append('completion takeaway renders for an exact-only line with zero accepted alternatives')
+
             mount_fixture(page, 'practice-terminal-fixture', 'practice')
-            complete_accepted_move(page, 'practice-terminal-fixture')
+            complete_move(page, 'practice-terminal-fixture', 'c7', 'c5')
             practice = page.locator('#practice-terminal-fixture')
             practice_panel = practice.locator('#completion-theory')
             expect(practice_panel).to_be_visible()
