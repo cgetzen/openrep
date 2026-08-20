@@ -1,4 +1,4 @@
-import { CoachingTrainerApp } from './coaching-trainer.js?v=terminal-theory-v1';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=decision-cues-v1';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
