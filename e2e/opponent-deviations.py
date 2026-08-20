@@ -130,7 +130,8 @@ def run():
 
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert is_highlighted(page, 'e2')
-            expect(page.locator('#line-variation')).to_contain_text('4.Be2 response')
+            expect(page.locator('#line-title')).to_have_text('Advance — Main setup — Quiet development')
+            expect(page.locator('#line-variation')).to_have_text('1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6')
 
             click_move(page, 'e7e6')
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
