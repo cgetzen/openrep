@@ -1,7 +1,8 @@
 .chessboard { position: relative; }
 
-/* Keep the recommended destination visually identical to a legal move option:
-   yellow teaching ring outside, gray move dot inside. */
+/* Keep the yellow recommendation ring visible at all times. The gray move-option
+   marker is the board's native legal-target marker, so it appears only after
+   selecting the piece and is exactly the same size as every other legal move. */
 .hint-target-indicator {
   position: absolute;
   inset: 9%;
@@ -12,17 +13,28 @@
   z-index: 6;
   pointer-events: none;
 }
-.hint-option-dot {
-  width: 23%;
-  height: 23%;
-  min-width: 9px;
-  min-height: 9px;
+.hint-option-dot { display: none; }
+.square.hint-to::after { display: none; }
+.square.hint-to.legal-target::after {
+  content: '';
+  display: block;
+  width: 22%;
+  height: 22%;
+  inset: auto;
+  border: 0;
   border-radius: 50%;
-  background: rgba(45,48,42,.55);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+  background: rgba(25,28,22,.32);
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
 }
-.square.hint-to::after,
-.square.hint-to.legal-target::after { display: none; }
+.square.hint-to.legal-target.occupied::after {
+  width: auto;
+  height: auto;
+  inset: 6%;
+  background: transparent;
+  border: 6px solid rgba(25,28,22,.28);
+}
 
 /* Standard Cburnett Staunton pieces. The original inline trainer SVG remains in
    the DOM for interaction/test stability, but is hidden on board squares. */
