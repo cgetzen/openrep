@@ -34,6 +34,10 @@ def run():
                 launch['args'] = ['--no-sandbox']
             browser = p.chromium.launch(**launch)
             context = browser.new_context(viewport={"width": 1280, "height": 900})
+            # Practice may intentionally sample learned alternate routes. This test is
+            # specifically about spaced scheduling, so always choose the canonical
+            # route; alternate-route sampling has dedicated coverage elsewhere.
+            context.add_init_script(script='Math.random = () => 1;')
             page = context.new_page()
             injected = False
             try:
