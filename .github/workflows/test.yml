@@ -22,36 +22,24 @@ jobs:
       - run: npm run test:e2e
 
   deploy-pr:
-    if: github.event_name == 'pull_request' && github.event.pull_request.number == 2
+    if: github.event_name == 'pull_request'
     needs: test
     permissions:
       contents: read
       pages: write
       id-token: write
-      issues: write
-      pull-requests: write
     environment:
-      name: pr-preview-2
+      name: pr-preview
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch Stockfish 18 browser engine
+        run: bash scripts/fetch-stockfish.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
           path: .
-      - name: Deploy PR #2 branch
+      - name: Deploy PR branch
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Record deployed URL on PR #2
-        uses: actions/github-script@v7
-        env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: 2,
-              body: `PR #2 branch deployment succeeded: ${process.env.PAGE_URL}`
-            })
