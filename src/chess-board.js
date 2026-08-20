@@ -1,40 +1,45 @@
 function pieceSvg(type) {
+  // Conventional Staunton-style silhouettes: restrained proportions, smooth
+  // curves, and minimal ornament so the pieces read like a standard chess set.
   const shapes = {
     p: `
-      <circle cx="50" cy="25" r="13"/>
-      <path d="M39 39h22l7 28H32z"/>
-      <path d="M27 67h46l6 12H21z"/>
-      <path d="M19 79h62v10H19z"/>`,
+      <circle cx="50" cy="24" r="11"/>
+      <path d="M41 39h18c-2 8 0 17 7 27H34c7-10 9-19 7-27z"/>
+      <path d="M30 66h40l4 8H26z"/>
+      <path d="M22 76h56v9H22z"/>`,
     n: `
-      <path d="M25 79h54v10H21z"/>
-      <path d="M30 74c3-14 9-24 18-31l-9-7 10-17c17 4 29 14 34 29l-15 8-9-9-8 8 11 19z"/>
-      <path d="M49 19l-2 14 13-9" fill="none"/>
-      <circle cx="62" cy="37" r="2.5" fill="var(--piece-stroke)" stroke="none"/>`,
+      <path d="M22 76h56l5 9H17z"/>
+      <path d="M29 68c2-13 8-25 19-34l-5-9 13-10c13 6 22 17 25 31l-13 7-10-8-8 6c5 4 9 10 12 17z"/>
+      <path d="M54 18c2 6 2 11 0 16" fill="none"/>
+      <circle cx="65" cy="34" r="2.1" class="piece-detail" stroke="none"/>`,
     b: `
-      <path d="M28 79h44l7 10H21z"/>
-      <path d="M34 68c2-15 8-25 16-31 8 6 14 16 16 31z"/>
-      <circle cx="50" cy="26" r="14"/>
-      <path d="M57 17L43 35" fill="none"/>`,
+      <path d="M23 76h54l5 9H18z"/>
+      <path d="M30 67h40l5 9H25z"/>
+      <path d="M36 62c2-12 7-22 14-29 7 7 12 17 14 29z"/>
+      <path d="M50 14c9 0 15 7 15 15 0 7-5 13-15 19-10-6-15-12-15-19 0-8 6-15 15-15z"/>
+      <path d="M57 19L43 38" fill="none"/>`,
     r: `
-      <path d="M24 79h52l6 10H18z"/>
-      <path d="M31 51h38l5 28H26z"/>
-      <path d="M25 20h13v10h12V20h12v10h13v18H25z"/>
-      <path d="M31 51h38" fill="none"/>`,
+      <path d="M22 76h56l5 9H17z"/>
+      <path d="M28 67h44l5 9H23z"/>
+      <path d="M32 39h36l3 28H29z"/>
+      <path d="M27 18h12v9h11v-9h11v9h12v13H27z"/>
+      <path d="M31 45h38" fill="none"/>`,
     q: `
-      <path d="M22 79h56l5 10H17z"/>
-      <path d="M29 70h42l5 9H24z"/>
-      <path d="M26 31l13 14 11-23 11 23 13-14-7 37H33z"/>
-      <circle cx="25" cy="27" r="5"/><circle cx="50" cy="18" r="5"/><circle cx="75" cy="27" r="5"/>`,
+      <path d="M21 76h58l5 9H16z"/>
+      <path d="M28 67h44l5 9H23z"/>
+      <path d="M31 38l8 25h22l8-25-12 11-7-22-7 22z"/>
+      <path d="M26 28l13 14 11-20 11 20 13-14" fill="none"/>
+      <circle cx="25" cy="25" r="4"/><circle cx="50" cy="18" r="4"/><circle cx="75" cy="25" r="4"/>`,
     k: `
-      <path d="M23 79h54l6 10H17z"/>
-      <path d="M30 69h40l6 10H24z"/>
-      <path d="M34 41h32l5 28H29z"/>
-      <path d="M50 13v27M39 23h22" fill="none" stroke-width="6"/>
-      <path d="M36 41c4-9 9-14 14-14s10 5 14 14z"/>`
+      <path d="M21 76h58l5 9H16z"/>
+      <path d="M28 67h44l5 9H23z"/>
+      <path d="M34 43h32l5 24H29z"/>
+      <path d="M36 43c3-9 8-14 14-14s11 5 14 14z"/>
+      <path d="M50 9v23M40 19h20" fill="none" stroke-width="4"/>`
   };
 
-  return `<svg class="piece-svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-    <g fill="var(--piece-fill)" stroke="var(--piece-stroke)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+  return `<svg class="piece-svg piece-svg-classic" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+    <g fill="var(--piece-fill)" stroke="var(--piece-stroke)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round">
       ${shapes[type]}
     </g>
   </svg>`;
@@ -51,6 +56,7 @@ export class ChessBoard {
     this.expectedFrom = null;
     this.expectedTo = null;
     this.lastMove = null;
+    this.explanationArrow = null;
     this.interactive = true;
     this.drag = null;
     this.dragGhost = null;
@@ -64,6 +70,7 @@ export class ChessBoard {
   setPosition(chess, { lastMove = null, interactive = true } = {}) {
     this.chess = chess;
     this.lastMove = lastMove;
+    this.explanationArrow = null;
     this.interactive = interactive;
     this.clearSelection();
     this.render();
@@ -72,6 +79,11 @@ export class ChessBoard {
   setExpectedMove(uci, showHint) {
     this.expectedFrom = showHint && uci ? uci.slice(0, 2) : null;
     this.expectedTo = showHint && uci ? uci.slice(2, 4) : null;
+    this.render();
+  }
+
+  setExplanationArrow(arrow) {
+    this.explanationArrow = arrow;
     this.render();
   }
 
@@ -107,9 +119,18 @@ export class ChessBoard {
           const pieceEl = document.createElement('span');
           pieceEl.className = `piece piece-${piece.color}`;
           pieceEl.dataset.pieceSquare = square;
+          pieceEl.dataset.pieceStyle = 'classic';
           pieceEl.innerHTML = pieceSvg(piece.type);
           pieceEl.addEventListener('pointerdown', event => this.startDrag(event, square, pieceEl));
           el.appendChild(pieceEl);
+        }
+
+        if (square === this.expectedTo) {
+          const indicator = document.createElement('span');
+          indicator.className = 'hint-target-indicator';
+          indicator.setAttribute('aria-hidden', 'true');
+          indicator.innerHTML = '<span class="hint-option-dot"></span>';
+          el.appendChild(indicator);
         }
 
         if (file === files[0]) {
@@ -135,6 +156,36 @@ export class ChessBoard {
         this.root.appendChild(el);
       }
     }
+
+    if (this.explanationArrow) this.renderExplanationArrow();
+  }
+
+  renderExplanationArrow() {
+    const { from, to } = this.explanationArrow ?? {};
+    const fromEl = from ? this.root.querySelector(`.square[data-square="${from}"]`) : null;
+    const toEl = to ? this.root.querySelector(`.square[data-square="${to}"]`) : null;
+    if (!fromEl || !toEl) return;
+
+    const boardRect = this.root.getBoundingClientRect();
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const x1 = fromRect.left + fromRect.width / 2 - boardRect.left;
+    const y1 = fromRect.top + fromRect.height / 2 - boardRect.top;
+    const x2 = toRect.left + toRect.width / 2 - boardRect.left;
+    const y2 = toRect.top + toRect.height / 2 - boardRect.top;
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'explanation-arrow-layer');
+    svg.setAttribute('viewBox', `0 0 ${boardRect.width} ${boardRect.height}`);
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `
+      <defs>
+        <marker id="explanation-arrow-head" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L7,3.5 L0,7 z" class="explanation-arrow-head"></path>
+        </marker>
+      </defs>
+      <line class="explanation-arrow" data-from="${from}" data-to="${to}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#explanation-arrow-head)"></line>`;
+    this.root.appendChild(svg);
   }
 
   syncSelectionClasses() {
@@ -205,9 +256,7 @@ export class ChessBoard {
     event.preventDefault();
     const valid = target && this.targetSquares.has(target);
     this.suppressNextClick = true;
-    window.setTimeout(() => {
-      this.suppressNextClick = false;
-    }, 0);
+    window.setTimeout(() => { this.suppressNextClick = false; }, 0);
     this.cleanupDrag(false);
 
     if (valid) {
@@ -236,6 +285,7 @@ export class ChessBoard {
 
   handleSquare(square) {
     if (!this.interactive) return;
+    if (this.explanationArrow) this.explanationArrow = null;
     if (this.selected && this.targetSquares.has(square)) {
       const from = this.selected;
       this.clearSelection();

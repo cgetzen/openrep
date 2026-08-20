@@ -1,0 +1,84 @@
+.chessboard { position: relative; }
+
+/* Keep the yellow recommendation ring visible at all times. The gray move-option
+   marker is the board's native legal-target marker, so it appears only after
+   selecting the piece and is exactly the same size as every other legal move. */
+.hint-target-indicator {
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+  border: 4px solid rgba(215,255,95,.82);
+  display: grid;
+  place-items: center;
+  z-index: 6;
+  pointer-events: none;
+}
+.hint-option-dot { display: none; }
+.square.hint-to::after { display: none; }
+.square.hint-to.legal-target::after {
+  content: '';
+  display: block;
+  width: 22%;
+  height: 22%;
+  inset: auto;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(25,28,22,.32);
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+.square.hint-to.legal-target.occupied::after {
+  width: auto;
+  height: auto;
+  inset: 6%;
+  background: transparent;
+  border: 6px solid rgba(25,28,22,.28);
+}
+
+/* Standard Cburnett Staunton pieces. The original inline trainer SVG remains in
+   the DOM for interaction/test stability, but is hidden on board squares. */
+.piece {
+  width: 92%;
+  height: 92%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: none;
+  z-index: 5;
+}
+.square .piece-svg-classic { opacity: 0; }
+.square[aria-label$=" wp"] .piece { background-image: url('./pieces/cburnett/wP.svg'); }
+.square[aria-label$=" wn"] .piece { background-image: url('./pieces/cburnett/wN.svg'); }
+.square[aria-label$=" wb"] .piece { background-image: url('./pieces/cburnett/wB.svg'); }
+.square[aria-label$=" wr"] .piece { background-image: url('./pieces/cburnett/wR.svg'); }
+.square[aria-label$=" wq"] .piece { background-image: url('./pieces/cburnett/wQ.svg'); }
+.square[aria-label$=" wk"] .piece { background-image: url('./pieces/cburnett/wK.svg'); }
+.square[aria-label$=" bp"] .piece { background-image: url('./pieces/cburnett/bP.svg'); }
+.square[aria-label$=" bn"] .piece { background-image: url('./pieces/cburnett/bN.svg'); }
+.square[aria-label$=" bb"] .piece { background-image: url('./pieces/cburnett/bB.svg'); }
+.square[aria-label$=" br"] .piece { background-image: url('./pieces/cburnett/bR.svg'); }
+.square[aria-label$=" bq"] .piece { background-image: url('./pieces/cburnett/bQ.svg'); }
+.square[aria-label$=" bk"] .piece { background-image: url('./pieces/cburnett/bK.svg'); }
+
+/* Lichess-like teaching arrow: slim translucent shaft, compact triangular head,
+   and layered beneath pieces so it reads as annotation rather than UI chrome. */
+.explanation-arrow-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+.explanation-arrow {
+  stroke: rgba(220, 76, 62, .68);
+  stroke-width: 1%;
+  stroke-linecap: round;
+  opacity: .72;
+}
+.explanation-arrow-head {
+  fill: rgba(220, 76, 62, .72);
+  opacity: .9;
+}

@@ -48,6 +48,8 @@ def browser_bundle() -> str:
         ROOT / 'src/progress.js',
         ROOT / 'src/chess-board.js',
         ROOT / 'src/trainer.js',
+        ROOT / 'src/move-explanations.js',
+        ROOT / 'src/coaching-trainer.js',
     ]
     chunks = []
     for path in paths:
@@ -56,8 +58,8 @@ def browser_bundle() -> str:
         source = re.sub(r'\bexport\s+(?=(?:const|let|var|class|function)\b)', '', source)
         chunks.append(source)
     chunks.append(
-        "window.__OpenRep = { TrainerApp, caroKann };\n"
-        "new TrainerApp(document.querySelector('#app'), caroKann).mount();"
+        "window.__OpenRep = { CoachingTrainerApp, caroKann };\n"
+        "new CoachingTrainerApp(document.querySelector('#app'), caroKann).mount();"
     )
     return '\n\n'.join(chunks)
 
@@ -68,6 +70,7 @@ def load_injected(page):
     html = re.sub(r'<script\s+type="module"[^>]*></script>', '', html)
     page.set_content(html)
     page.add_style_tag(content=(ROOT / 'src/style.css').read_text())
+    page.add_style_tag(content=(ROOT / 'src/coach-overrides.css').read_text())
     page.add_script_tag(content="""
       (() => {
         const store = new Map();
@@ -107,7 +110,7 @@ def restore_app(page, injected: bool):
     if injected:
         page.evaluate("""
           document.querySelector('#app').replaceChildren();
-          new window.__OpenRep.TrainerApp(
+          new window.__OpenRep.CoachingTrainerApp(
             document.querySelector('#app'), window.__OpenRep.caroKann
           ).mount();
         """)
@@ -150,17 +153,34 @@ def run():
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('loads course and auto-plays 1.e4')
 
-            # New board UX: original SVG pieces and opponent last-move highlighting.
+            # Board teaching UX: classic pieces, opponent last-move highlight, and a
+            # gray legal-move dot nested inside the yellow recommended-move ring.
             expect(page.locator('.piece-svg')).to_have_count(32)
+            expect(page.locator('.piece[data-piece-style="classic"] .piece-svg-classic')).to_have_count(32)
             expect(page.locator('.square.last-move')).to_have_count(2)
             assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
-            results.append('renders SVG pieces and highlights opponent 1.e4 from/to squares')
+            expect(square(page, 'c6').locator('.hint-target-indicator .hint-option-dot')).to_have_count(1)
+            results.append('renders classic pieces, last-move highlights, and yellow+gray recommendation marker')
 
-            # Wrong-but-legal move must not advance the repertoire state.
+            # A strategic deviation should explain why the repertoire move is preferred
+            # without advancing the training state.
             click_move(page, 'g8f6')
-            expect(page.locator('#feedback')).to_contain_text('Not quite')
+            expect(page.locator('#feedback')).to_contain_text('Why this is inaccurate')
+            expect(page.locator('#feedback')).to_contain_text('c6')
             expect(page.locator('#prompt')).to_contain_text('c6')
-            results.append('rejects off-repertoire legal move without advancing')
+            results.append('explains strategic off-repertoire moves without advancing')
+
+            # A tactically bad deviation should show the concrete punishment and draw it.
+            page.locator('#reset-line').click()
+            expect(page.locator('#prompt')).to_contain_text('c6')
+            click_move(page, 'b7b5')
+            expect(page.locator('#feedback')).to_contain_text('Why this is bad')
+            expect(page.locator('#feedback')).to_contain_text('Bxb5')
+            expect(page.locator('.explanation-arrow[data-from="f1"][data-to="b5"]')).to_have_count(1)
+            expect(page.locator('#prompt')).to_contain_text('c6')
+            page.locator('#reset-line').click()
+            expect(page.locator('.explanation-arrow')).to_have_count(0)
+            results.append('explains 1...b5 with Bxb5 and an f1-to-b5 teaching arrow')
 
             # Exercise drag-to-move, opponent highlight update, and history review.
             page.locator('#reset-line').click()
