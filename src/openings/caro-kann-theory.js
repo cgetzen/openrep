@@ -1,83 +1,160 @@
-export const caroKannMoveTheory = [
-  {
-    anchor: { lineId: 'advance-main', ply: 13 },
-    move: 'g8e7',
-    rationale: 'Develops without blocking the f-pawn and supports ...Ng6, where the knight can add pressure to White’s center.',
-    source: 'curated'
+import { caroKann } from './caro-kann.js';
+
+const cue = {
+  caroStart: 'Prepare to challenge White’s center with ...d5.',
+  d4Challenge: 'Challenge White’s pawn center before it can consolidate.',
+  advanceBishop: 'White has advanced the center. Activate the light bishop before closing it in.',
+  exchangeRecapture: 'Restore the pawn while keeping a balanced central structure.'
+};
+
+const caroKannDecisionCues = {
+  'advance-main': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: cue.advanceBishop,
+    7: 'Stabilize the center and prepare the thematic attack on d4.',
+    9: 'Strike at the base of White’s advanced center before it becomes comfortable.',
+    11: 'Develop with pressure on d4 and support the central counterplay.',
+    13: 'Keep development flexible and prepare more pressure on the center.'
   },
-  {
-    anchor: { lineId: 'advance-tal', ply: 13 },
-    move: 'c6c5',
-    rationale: 'Strikes at d4, the base of White’s advanced center, before White can consolidate the extra space.',
-    source: 'curated'
+  'advance-tal': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: cue.advanceBishop,
+    7: 'White is trying to chase your bishop. Stop the pawn advance without giving up the bishop.',
+    9: 'White has offered a trade while your bishop is a target. Resolve it before losing time.',
+    11: 'Secure the center and open the path to complete development.',
+    13: 'Attack d4, the base of White’s space advantage.'
   },
-  {
-    anchor: { lineId: 'advance-bayonet', ply: 13 },
-    move: 'h7h5',
-    rationale: 'Challenges White’s kingside pawn chain immediately and prevents h5 from gaining more space for free.',
-    source: 'curated'
+  'advance-bayonet': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: cue.advanceBishop,
+    7: 'Prepare a safe retreat for the bishop and the standard central break.',
+    9: 'Preserve the bishop and let White spend tempi on pawn expansion.',
+    11: 'Counter in the center before White’s kingside expansion becomes dangerous.',
+    13: 'Challenge the pawn chain before White can roll it forward.'
   },
-  {
-    anchor: { lineId: 'classical-main', ply: 15 },
-    move: 'g6h7',
-    rationale: 'Completes the standard bishop retreat, keeping the bishop safe while Black finishes development behind a compact structure.',
-    source: 'curated'
+  'classical-main': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: 'Resolve the central tension while White’s knight can recapture into an exposed square.',
+    7: 'Develop actively with tempo against the centralized knight.',
+    9: 'Keep the bishop active while making White spend more time to chase it.',
+    11: 'Give the bishop a safe retreat before White gains more space with h5–h6.',
+    13: 'Finish developing behind the compact center and prepare ...Ngf6.',
+    15: 'Keep the bishop safe without abandoning its useful diagonal.'
   },
-  {
-    anchor: { lineId: 'exchange-main', ply: 13 },
-    move: 'd8d7',
-    rationale: 'Defends b7, connects the queenside pieces, and keeps Black coordinated in the symmetrical Exchange structure.',
-    source: 'curated'
+  'exchange-main': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: cue.exchangeRecapture,
+    7: 'Develop toward d4 and keep central breaks available.',
+    9: 'Develop naturally and prepare to castle.',
+    11: 'Avoid passive symmetry; develop actively by creating a useful pin.',
+    13: 'Meet the pressure on b7 while keeping the queenside coordinated.'
   },
-  {
-    anchor: { lineId: 'panov-main', ply: 15 },
-    move: 'e8g8',
-    rationale: 'Secures the king and connects the rook before Black turns fully to pressure against the isolated d-pawn.',
-    source: 'curated'
+  'panov-main': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: cue.exchangeRecapture,
+    7: 'Develop quickly and pressure the center instead of trying to hold it with pawns.',
+    9: 'Build a solid center and prepare the isolated-pawn structure on favorable terms.',
+    11: 'Develop with pressure on the knight that supports White’s center.',
+    13: 'Recapture to keep active piece play even if it leaves an isolated pawn.',
+    15: 'Secure the king before turning to pressure against White’s center.'
   },
-  {
-    anchor: { lineId: 'two-knights', ply: 13 },
-    move: 'd5e4',
-    rationale: 'Uses the moment to remove White’s central pawn and simplify after Black’s pieces are developed to pressure e4.',
-    source: 'curated'
+  'two-knights': {
+    1: cue.caroStart,
+    3: 'Challenge e4 before White’s pieces can fully support it.',
+    5: 'Use White’s knight placement to develop the light bishop actively before ...e6.',
+    7: 'White is spending a tempo to question the bishop. Resolve the tension rather than retreat passively.',
+    9: 'Build a sound center now that the bishop has done its job.',
+    11: 'Increase pressure on e4 while completing natural development.',
+    13: 'The center is ready to simplify. Remove White’s e-pawn before it can advance or be reinforced.'
   },
-  {
-    anchor: { lineId: 'fantasy', ply: 13 },
-    move: 'f6d7',
-    rationale: 'Reroutes the knight toward c5 or e5, where it can challenge White’s advanced center instead of being pushed around.',
-    source: 'curated'
+  'fantasy': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: 'White has committed f3. Stay solid and reinforce the center rather than overreact.',
+    7: 'Develop with pressure on the knight that supports White’s center.',
+    9: 'Keep the bishop and prepare to castle rather than spending more tempi on the pin.',
+    11: 'Develop with pressure on e4 and add another defender to the center.',
+    13: 'White has advanced. Reroute pieces toward squares that can challenge the pawn chain.'
   },
-  {
-    anchor: { lineId: 'hillbilly', ply: 11 },
-    move: 'c8f5',
-    rationale: 'Develops the light-squared bishop actively before ...e6, using the time White spent on the early bishop sortie.',
-    source: 'curated'
+  'hillbilly': {
+    1: cue.caroStart,
+    3: 'White’s bishop moved early. Challenge e4 immediately and gain time from the exposed bishop.',
+    5: 'Restore the pawn and claim central presence.',
+    7: 'Develop naturally while meeting the bishop’s interference.',
+    9: 'Develop with pressure on the center rather than spending tempi chasing the bishop.',
+    11: 'Use the extra time to activate the light bishop before ...e6.'
   },
-  {
-    anchor: { lineId: 'quiet-d3', ply: 11 },
-    move: 'e8g8',
-    rationale: 'Completes development and secures the king after Black has comfortably claimed central space.',
-    source: 'curated'
+  'quiet-d3': {
+    1: cue.caroStart,
+    3: 'White has declined to occupy the center. Claim equal central space immediately.',
+    5: 'Take the extra central space White has left available.',
+    7: 'Develop to support the broad center and prepare kingside safety.',
+    9: 'Complete natural development while holding the center.',
+    11: 'Secure the king; the opening has given Black an easy, stable setup.'
   },
-  {
-    anchor: { lineId: 'early-nf3', ply: 11 },
-    move: 'c8f5',
-    rationale: 'Develops the light-squared bishop outside the pawn chain before ...e6 while keeping the bishop flexible.',
-    source: 'curated'
+  'early-nf3': {
+    1: cue.caroStart,
+    3: 'White’s move order changes little. Challenge e4 on principle.',
+    5: 'Restore the pawn and settle into an Exchange-like structure.',
+    7: 'Develop with pressure on d4.',
+    9: 'Meet the pin with normal development instead of making concessions.',
+    11: 'Activate the light-squared bishop before ...e6.'
   },
-  {
-    anchor: { lineId: 'early-nf3', ply: 11 },
-    move: 'c8g4',
-    rationale: 'Also develops the bishop before ...e6, using the knight on f3 as a target and creating a pin.',
-    source: 'curated'
-  },
-  {
-    anchor: { lineId: 'advance-early-c5', ply: 13 },
-    move: 'g8e7',
-    rationale: 'Develops toward f5 or g6 while keeping the f-pawn free, reinforcing the flexible pressure created by the early ...c5 setup.',
-    source: 'curated'
+  'advance-early-c5': {
+    1: cue.caroStart,
+    3: cue.d4Challenge,
+    5: 'White has advanced the center. Challenge d4 immediately instead of committing the bishop first.',
+    7: 'Add another attacker to d4 and keep the pressure growing.',
+    9: 'Develop actively by using the f3-knight as a target.',
+    11: 'Reinforce the center and open the dark bishop while maintaining pressure.',
+    13: 'Keep development flexible and support ...Nf5 without blocking the f-pawn.'
   }
-];
+};
+
+const completionRationale = {
+  'advance-main': 'Develops without blocking the f-pawn and supports ...Ng6, where the knight can add pressure to White’s center.',
+  'advance-tal': 'Strikes at d4, the base of White’s advanced center, before White can consolidate the extra space.',
+  'advance-bayonet': 'Challenges White’s kingside pawn chain immediately and prevents h5 from gaining more space for free.',
+  'classical-main': 'Completes the standard bishop retreat, keeping the bishop safe while Black finishes development behind a compact structure.',
+  'exchange-main': 'Defends b7, connects the queenside pieces, and keeps Black coordinated in the symmetrical Exchange structure.',
+  'panov-main': 'Secures the king and connects the rook before Black turns fully to pressure against the isolated d-pawn.',
+  'two-knights': 'Uses the moment to remove White’s central pawn and simplify after Black’s pieces are developed to pressure e4.',
+  'fantasy': 'Reroutes the knight toward c5 or e5, where it can challenge White’s advanced center instead of being pushed around.',
+  'hillbilly': 'Develops the light-squared bishop actively before ...e6, using the time White spent on the early bishop sortie.',
+  'quiet-d3': 'Completes development and secures the king after Black has comfortably claimed central space.',
+  'early-nf3': 'Develops the light-squared bishop outside the pawn chain before ...e6 while keeping the bishop flexible.',
+  'advance-early-c5': 'Develops toward f5 or g6 while keeping the f-pawn free, reinforcing the flexible pressure created by the early ...c5 setup.'
+};
+
+export const caroKannMoveTheory = caroKann.lines.flatMap(line => {
+  const cues = caroKannDecisionCues[line.id] ?? {};
+  const terminalPly = line.moves.length - 1;
+  return Object.entries(cues).map(([rawPly, decisionCue]) => {
+    const ply = Number(rawPly);
+    const entry = {
+      anchor: { lineId: line.id, ply },
+      move: line.moves[ply],
+      cue: decisionCue,
+      source: 'curated'
+    };
+    if (ply === terminalPly) entry.rationale = completionRationale[line.id];
+    return entry;
+  });
+});
+
+caroKannMoveTheory.push({
+  anchor: { lineId: 'early-nf3', ply: 11 },
+  move: 'c8g4',
+  cue: caroKannDecisionCues['early-nf3'][11],
+  rationale: 'Also develops the bishop before ...e6, using the knight on f3 as a target and creating a pin.',
+  source: 'curated'
+});
 
 export const caroKannLessonDecisions = [
   {
