@@ -11,6 +11,7 @@ export class TrainerApp {
     this.progress = loadProgress(course.id);
     this.mode = 'learn';
     this.practiceSelection = 'spaced';
+    this.practiceCaughtUp = false;
     this.line = course.lines[0];
     this.lineIndex = 0;
     this.ply = 0;
@@ -109,7 +110,8 @@ export class TrainerApp {
     this.root.querySelector('#reset-progress').addEventListener('click', () => {
       resetProgress(this.course.id);
       this.progress = loadProgress(this.course.id);
-      this.refresh();
+      if (this.mode === 'practice') this.startPracticeQueue();
+      else this.refresh();
     });
     this.root.querySelectorAll('[data-grade]').forEach(button => button.addEventListener('click', () => this.gradeLine(button.dataset.grade)));
 
@@ -133,15 +135,17 @@ export class TrainerApp {
   setMode(mode) {
     if (!['learn', 'practice'].includes(mode)) return;
     this.mode = mode;
-    if (mode === 'practice') this.lineIndex = this.pickPracticeLineIndex();
+    if (mode === 'practice') {
+      this.startPracticeQueue();
+      return;
+    }
     this.startLine(this.lineIndex);
   }
 
   setPracticeSelection(selection) {
     this.practiceSelection = normalizePracticeSelection(selection);
     if (this.mode === 'practice') {
-      this.lineIndex = this.pickPracticeLineIndex();
-      this.startLine(this.lineIndex);
+      this.startPracticeQueue();
       return;
     }
     this.refresh();
@@ -151,7 +155,27 @@ export class TrainerApp {
     return selectPracticeLineIndex(this.course.lines, this.progress, this.practiceSelection);
   }
 
+  startPracticeQueue() {
+    const index = this.pickPracticeLineIndex();
+    if (index === null) {
+      this.enterPracticeCaughtUp();
+      return;
+    }
+    this.startLine(index);
+  }
+
+  enterPracticeCaughtUp() {
+    this.practiceCaughtUp = true;
+    this.lineFinished = true;
+    this.viewPly = null;
+    this.board.clearSelection();
+    this.clearFeedback();
+    this.showFeedback('No spaced reviews are due right now.', 'correct');
+    this.refresh();
+  }
+
   startLine(index) {
+    this.practiceCaughtUp = false;
     this.lineIndex = index;
     this.line = this.course.lines[index];
     this.chess.reset();
@@ -244,6 +268,7 @@ export class TrainerApp {
   }
 
   gradeLine(grade) {
+    if (this.practiceCaughtUp) return;
     const current = this.progress.lines[this.line.id] ?? defaultLineProgress();
     this.progress.lines[this.line.id] = scheduleReview(current, grade);
     saveProgress(this.course.id, this.progress);
@@ -251,8 +276,11 @@ export class TrainerApp {
   }
 
   advanceLine() {
-    if (this.mode === 'practice') this.lineIndex = this.pickPracticeLineIndex();
-    else this.lineIndex = (this.lineIndex + 1) % this.course.lines.length;
+    if (this.mode === 'practice') {
+      this.startPracticeQueue();
+      return;
+    }
+    this.lineIndex = (this.lineIndex + 1) % this.course.lines.length;
     this.startLine(this.lineIndex);
   }
 
@@ -267,12 +295,17 @@ export class TrainerApp {
     const hintButton = this.root.querySelector('#hint-toggle');
     hintButton.textContent = `Hint: ${this.hintEnabled ? 'on' : 'off'}`;
     const practiceLabel = this.mode === 'practice' ? ` · ${this.practiceSelection.toUpperCase()}` : '';
-    this.root.querySelector('#line-counter').textContent = `${this.mode.toUpperCase()}${practiceLabel} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
-    this.root.querySelector('#line-title').textContent = this.line.title;
-    this.root.querySelector('#line-variation').textContent = this.line.variation;
+    const caughtUpLabel = this.practiceCaughtUp ? ' · CAUGHT UP' : '';
+    this.root.querySelector('#line-counter').textContent = this.practiceCaughtUp
+      ? `${this.mode.toUpperCase()}${practiceLabel}${caughtUpLabel}`
+      : `${this.mode.toUpperCase()}${practiceLabel} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
+    this.root.querySelector('#line-title').textContent = this.practiceCaughtUp ? 'Spaced reviews complete' : this.line.title;
+    this.root.querySelector('#line-variation').textContent = this.practiceCaughtUp ? 'Nothing else is due right now.' : this.line.variation;
 
     const prompt = this.root.querySelector('#prompt');
-    if (this.viewPly !== null) {
+    if (this.practiceCaughtUp) {
+      prompt.innerHTML = '<strong>You’re caught up.</strong><span>No spaced reviews are due right now. Switch to Weak for extra practice.</span>';
+    } else if (this.viewPly !== null) {
       prompt.innerHTML = `<strong>Reviewing this line.</strong><span>Position ${this.viewPly} of ${this.ply}. Use → to return to the current position.</span>`;
     } else if (this.lineFinished) prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
     else if (this.chess.turn() === this.course.side && this.ply < this.line.moves.length) {
@@ -281,7 +314,14 @@ export class TrainerApp {
       prompt.innerHTML = `<strong>Your move as Black.</strong><span>${this.line.summary}${clue}</span>`;
     } else prompt.innerHTML = `<strong>Opponent move.</strong><span>Watch White’s choice, then respond from the repertoire.</span>`;
 
-    this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished);
+    this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished || this.practiceCaughtUp);
+    const nextLineButton = this.root.querySelector('#next-line');
+    nextLineButton.disabled = this.mode === 'practice';
+    nextLineButton.textContent = this.mode === 'practice'
+      ? (this.practiceCaughtUp ? 'Reviews complete' : this.lineFinished ? 'Grade to continue' : 'Practice queue')
+      : 'Next line →';
+    this.root.querySelector('#reset-line').disabled = this.practiceCaughtUp;
+
     this.renderProgress();
     this.renderLineList();
     this.refreshBoardState();
