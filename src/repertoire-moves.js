@@ -33,6 +33,17 @@ function notationLabel(chess, ply, uci) {
   return chess.turn() === 'w' ? `${moveNumber}.${san}` : `${moveNumber}...${san}`;
 }
 
+function notationSequence(chess, startPly, moves = []) {
+  const probe = chess.clone();
+  const labels = [];
+  for (let offset = 0; offset < moves.length; offset += 1) {
+    const uci = moves[offset];
+    labels.push(notationLabel(probe, startPly + offset, uci));
+    probe.moveUci(uci);
+  }
+  return labels;
+}
+
 export function summarizeExactBranchMatches(matches) {
   const seenIds = new Set();
   const seenTitles = new Set();
@@ -84,35 +95,35 @@ export class RepertoireMoveIndex {
       }
     }
 
-    for (const deviation of this.course?.deviations ?? []) {
-      this.indexMicroDeviation(deviation);
+    for (const response of this.course?.responses ?? this.course?.deviations ?? []) {
+      this.indexNewResponse(response);
     }
   }
 
-  indexMicroDeviation(deviation) {
-    const line = this.lineById.get(deviation?.anchor?.lineId);
-    const ply = deviation?.anchor?.ply;
+  indexNewResponse(response) {
+    const line = this.lineById.get(response?.anchor?.lineId);
+    const ply = response?.anchor?.ply;
     if (!line || !Number.isInteger(ply) || ply < 0 || ply >= line.moves.length) {
-      throw new Error(`Invalid deviation anchor: ${deviation?.id ?? 'unknown'}`);
+      throw new Error(`Invalid response anchor: ${response?.id ?? 'unknown'}`);
     }
 
     const chess = new MiniChess();
     for (const uci of line.moves.slice(0, ply)) chess.moveUci(uci);
     if (chess.turn() === this.course.side) {
-      throw new Error(`Deviation ${deviation.id} must begin on the opponent turn`);
+      throw new Error(`Response ${response.id} must begin on the opponent turn`);
     }
 
     const probe = chess.clone();
-    probe.moveUci(deviation.move);
+    probe.moveUci(response.move);
     if (probe.turn() !== this.course.side) {
-      throw new Error(`Deviation ${deviation.id} does not hand the move to the repertoire side`);
+      throw new Error(`Response ${response.id} does not hand the move to the repertoire side`);
     }
-    probe.moveUci(deviation.response);
-    for (const uci of deviation.continuation ?? []) probe.moveUci(uci);
+    probe.moveUci(response.response);
+    for (const uci of response.continuation ?? []) probe.moveUci(uci);
 
     const key = positionKey(chess);
     const entries = this.microByPosition.get(key) ?? [];
-    entries.push({ ...deviation, line, ply });
+    entries.push({ ...response, line, ply });
     this.microByPosition.set(key, entries);
   }
 
@@ -120,6 +131,7 @@ export class RepertoireMoveIndex {
     return {
       id: `canonical:${line.id}`,
       kind: 'canonical',
+      coverage: 'canonical',
       lineId: line.id,
       moves: [...(line.moves ?? [])],
       notes: cloneNotes(line.notes),
@@ -162,6 +174,7 @@ export class RepertoireMoveIndex {
     return {
       id: `branch:${line.id}:${ply}:${moveKey(move)}`,
       kind: 'branch',
+      coverage: 'covered-elsewhere',
       lineId: line.id,
       moves: [
         ...line.moves.slice(0, ply),
@@ -179,34 +192,47 @@ export class RepertoireMoveIndex {
     };
   }
 
-  microRoute(line, deviation, chess, ply) {
+  microRoute(line, response, chess, ply) {
     const notes = {};
     for (const [notePly, note] of Object.entries(line.notes ?? {})) {
       const numeric = Number(notePly);
       if (numeric < ply) notes[numeric] = note;
     }
-    if (deviation.responseNote) notes[ply + 1] = deviation.responseNote;
-    for (const [relativePly, note] of Object.entries(deviation.notes ?? {})) {
+    if (response.responseNote) notes[ply + 1] = response.responseNote;
+    for (const [relativePly, note] of Object.entries(response.notes ?? {})) {
       notes[ply + 2 + Number(relativePly)] = note;
     }
 
+    const afterOpponent = chess.clone();
+    afterOpponent.moveUci(response.move);
+    const responseLabel = notationLabel(afterOpponent, ply + 1, response.response);
+    const afterResponse = afterOpponent.clone();
+    afterResponse.moveUci(response.response);
+    const exampleMoves = [...(response.continuation ?? [])];
+
     return {
-      id: `micro:${deviation.id}`,
+      id: `micro:${response.id}`,
       kind: 'micro',
+      coverage: 'new-response',
       lineId: line.id,
-      deviationId: deviation.id,
+      responseId: response.id,
+      response: response.response,
+      responsePly: ply + 1,
+      responseLabel,
+      exampleMoves,
+      exampleLabels: notationSequence(afterResponse, ply + 2, exampleMoves),
       moves: [
         ...line.moves.slice(0, ply),
-        deviation.move,
-        deviation.response,
-        ...(deviation.continuation ?? [])
+        response.move,
+        response.response,
+        ...exampleMoves
       ],
       notes,
-      label: deviation.title,
-      idea: deviation.idea ?? '',
+      label: response.label ?? 'New response',
+      idea: response.idea ?? '',
       divergencePly: ply,
-      opponentMove: deviation.move,
-      opponentLabel: notationLabel(chess, ply, deviation.move),
+      opponentMove: response.move,
+      opponentLabel: notationLabel(chess, ply, response.move),
       targetLineId: null,
       targetTitles: []
     };
@@ -224,6 +250,8 @@ export class RepertoireMoveIndex {
     const coveredMoves = new Set([canonical]);
     const byMove = this.movesByPosition.get(key) ?? new Map();
 
+    // Full repertoire branches win when the same opponent move is represented
+    // both as a branch and as curated response content.
     for (const [move, entries] of byMove.entries()) {
       if (coveredMoves.has(move)) continue;
       const matches = entries.filter(entry => entry.line?.id !== line.id);
@@ -235,14 +263,20 @@ export class RepertoireMoveIndex {
       }
     }
 
-    for (const deviation of this.microByPosition.get(key) ?? []) {
-      const move = moveKey(deviation.move);
+    for (const response of this.microByPosition.get(key) ?? []) {
+      const move = moveKey(response.move);
       if (coveredMoves.has(move)) continue;
-      routes.push(this.microRoute(line, deviation, chess, ply));
+      routes.push(this.microRoute(line, response, chess, ply));
       coveredMoves.add(move);
     }
 
-    return routes;
+    // New material is the primary learner-facing feature; covered branches are
+    // useful context but should remain visually and semantically secondary.
+    return routes.sort((a, b) => {
+      const aRank = a.coverage === 'new-response' ? 0 : 1;
+      const bRank = b.coverage === 'new-response' ? 0 : 1;
+      return aRank - bRank;
+    });
   }
 
   alternativesForLine(line) {
@@ -262,22 +296,46 @@ export class RepertoireMoveIndex {
     return routes;
   }
 
-  isRouteLearned(route, progress) {
-    if (!route || route.kind === 'canonical') return true;
-    if ((progress?.learnedDeviations ?? []).includes(route.id)) return true;
-    return route.kind === 'branch' && Boolean(
-      route.targetLineId && (progress?.discovered ?? []).includes(route.targetLineId)
+  newResponsesForLine(line) {
+    return this.alternativesForLine(line).filter(route => route.coverage === 'new-response');
+  }
+
+  isResponseLearned(route, progress) {
+    return Boolean(
+      route?.coverage === 'new-response'
+      && route.responseId
+      && (progress?.learnedResponses ?? []).includes(route.responseId)
     );
   }
 
+  isCoveredLessonDiscovered(route, progress) {
+    return Boolean(
+      route?.coverage === 'covered-elsewhere'
+      && route.targetLineId
+      && (progress?.discovered ?? []).includes(route.targetLineId)
+    );
+  }
+
+  isRouteLearned(route, progress) {
+    if (!route || route.kind === 'canonical') return true;
+    if (route.coverage === 'new-response') return this.isResponseLearned(route, progress);
+    if (route.coverage === 'covered-elsewhere') return this.isCoveredLessonDiscovered(route, progress);
+    return false;
+  }
+
+  practiceAlternativesForLine(line, progress) {
+    return this.alternativesForLine(line).filter(route => this.isRouteLearned(route, progress));
+  }
+
+  // Compatibility alias for callers/tests from the first opponent-deviation
+  // implementation. The semantics are now explicitly "practice-ready".
   learnedAlternativesForLine(line, progress) {
-    const learned = new Set(progress?.learnedDeviations ?? []);
-    return this.alternativesForLine(line).filter(route => learned.has(route.id));
+    return this.practiceAlternativesForLine(line, progress);
   }
 
   pickPracticeRoute(line, progress, random = Math.random) {
     const canonical = this.canonicalRoute(line);
-    const alternatives = this.learnedAlternativesForLine(line, progress);
+    const alternatives = this.practiceAlternativesForLine(line, progress);
     if (!alternatives.length || random() >= 0.5) return canonical;
     return alternatives[Math.floor(random() * alternatives.length)] ?? canonical;
   }

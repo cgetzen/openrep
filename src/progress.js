@@ -12,7 +12,24 @@ export function defaultLineProgress(now = Date.now()) {
 }
 
 export function defaultCourseProgress() {
-  return { discovered: [], learnedDeviations: [], lines: {}, totalSessions: 0 };
+  return { discovered: [], learnedResponses: [], lines: {}, totalSessions: 0 };
+}
+
+export function normalizeCourseProgress(raw = {}) {
+  const parsed = raw && typeof raw === 'object' ? raw : {};
+  const explicitResponses = Array.isArray(parsed.learnedResponses) ? parsed.learnedResponses : [];
+  const legacyResponses = Array.isArray(parsed.learnedDeviations)
+    ? parsed.learnedDeviations
+      .filter(id => typeof id === 'string' && id.startsWith('micro:'))
+      .map(id => id.slice('micro:'.length))
+    : [];
+  const { learnedDeviations: _legacy, ...rest } = parsed;
+
+  return {
+    ...defaultCourseProgress(),
+    ...rest,
+    learnedResponses: [...new Set([...explicitResponses, ...legacyResponses])]
+  };
 }
 
 export function scheduleReview(current, grade, now = Date.now()) {
@@ -44,7 +61,7 @@ export function scheduleReview(current, grade, now = Date.now()) {
 export function loadProgress(courseId) {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${courseId}`);
-    return raw ? { ...defaultCourseProgress(), ...JSON.parse(raw) } : defaultCourseProgress();
+    return raw ? normalizeCourseProgress(JSON.parse(raw)) : defaultCourseProgress();
   } catch {
     return defaultCourseProgress();
   }

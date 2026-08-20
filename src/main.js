@@ -1,9 +1,9 @@
-import './style.css.js?v=opponent-deviations-v1';
+import './style.css.js?v=response-learning-v2';
 import { caroKann } from './openings/caro-kann.js';
-import { caroKannDeviations } from './openings/caro-kann-deviations.js?v=opponent-deviations-v1';
-import { CoachingTrainerApp } from './coaching-trainer.js?v=opponent-deviations-v1';
+import { caroKannResponses } from './openings/caro-kann-responses.js?v=response-learning-v2';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=response-learning-v2';
 
 const root = document.querySelector('#app');
 if (!root) throw new Error('Missing #app root');
-const course = { ...caroKann, deviations: caroKannDeviations };
+const course = { ...caroKann, responses: caroKannResponses };
 new CoachingTrainerApp(root, course).mount();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultLineProgress, scheduleReview } from '../src/progress.js';
+import { defaultLineProgress, normalizeCourseProgress, scheduleReview } from '../src/progress.js';
 
 const now = Date.UTC(2026, 7, 19);
 
@@ -22,4 +22,16 @@ test('successful recalls grow spacing', () => {
 test('Easy schedules farther out than Good', () => {
   const base = { ...defaultLineProgress(now), repetitions: 2, intervalDays: 6 };
   assert.ok(scheduleReview(base, 'easy', now).intervalDays > scheduleReview(base, 'good', now).intervalDays);
+});
+
+test('legacy micro deviation progress migrates to response-level learning state', () => {
+  const result = normalizeCourseProgress({
+    discovered: ['advance-main'],
+    learnedDeviations: ['micro:advance-quiet-be2', 'branch:advance-main:6:h2h4'],
+    lines: {},
+    totalSessions: 1
+  });
+
+  assert.deepEqual(result.learnedResponses, ['advance-quiet-be2']);
+  assert.equal(Object.hasOwn(result, 'learnedDeviations'), false);
 });

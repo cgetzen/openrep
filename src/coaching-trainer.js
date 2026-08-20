@@ -1,7 +1,6 @@
-import { TrainerApp } from './trainer.js?v=opponent-deviations-v1';
-import { defaultLineProgress, saveProgress } from './progress.js';
+import { TrainerApp } from './trainer.js?v=response-learning-v2';
 import { explainWrongMove } from './move-explanations.js';
-import { summarizeExactBranchMatches } from './repertoire-moves.js?v=opponent-deviations-v1';
+import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { classifyMoveQuality, formatMoveQualityLabel } from './evaluation.js?v=move-quality-v1';
 import { StockfishEvaluator } from './stockfish-evaluator.js?v=move-quality-v1';
@@ -77,14 +76,21 @@ export class CoachingTrainerApp extends TrainerApp {
     }).catch(() => {});
   }
 
+  expectedMoveContext(expectedNotation) {
+    return this.isLearnResponseLesson()
+      ? `this response lesson is teaching ${expectedNotation}`
+      : `this rep is training “${this.line.title}.” Play ${expectedNotation} here`;
+  }
+
   showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation) {
     const feedback = this.root.querySelector('#feedback');
     feedback.className = 'feedback wrong';
     feedback.replaceChildren();
 
+    const context = this.expectedMoveContext(expectedNotation);
     const branchSummary = summarizeExactBranchMatches(classification.exactPathMatches);
     if (!branchSummary.primaryTitle) {
-      feedback.textContent = `${attemptedNotation} is a repertoire move from this position, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`;
+      feedback.textContent = `${attemptedNotation} is a repertoire move from this position, but ${context}.`;
       return;
     }
 
@@ -121,9 +127,7 @@ export class CoachingTrainerApp extends TrainerApp {
       feedback.append(more);
     }
 
-    feedback.append(document.createTextNode(
-      `, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`
-    ));
+    feedback.append(document.createTextNode(`, but ${context}.`));
   }
 
   onUserMove(from, to) {
@@ -143,7 +147,7 @@ export class CoachingTrainerApp extends TrainerApp {
       return;
     }
 
-    this.mistakesThisLine += 1;
+    this.recordTrainingMistake();
     let explanationArrow = null;
 
     if (classification.kind === 'repertoire-alternative') {
@@ -160,11 +164,6 @@ export class CoachingTrainerApp extends TrainerApp {
       explanationArrow = explanation.arrow;
       this.showFeedback(explanation.message, 'wrong');
     }
-
-    const progress = this.progress.lines[this.line.id] ?? defaultLineProgress();
-    progress.mistakes += 1;
-    this.progress.lines[this.line.id] = progress;
-    saveProgress(this.course.id, this.progress);
 
     this.board.clearSelection();
     this.refreshBoardState();

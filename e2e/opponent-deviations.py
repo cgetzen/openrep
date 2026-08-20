@@ -25,41 +25,79 @@ def run():
             page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load')
             expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()
 
+            # Reach the first meaningful Advance branching position.
             for move in ['c7c6', 'd7d5', 'c8f5']:
                 expect(page.locator('#prompt')).to_contain_text('Your move as Black')
                 click_move(page, move)
 
             options = page.locator('#opponent-options')
             expect(options).to_be_visible()
-            expect(options).to_contain_text('4.h4')
-            expect(options).to_contain_text('4.Nc3')
-            expect(options).to_contain_text('4.Be2')
-            expect(options).to_contain_text('Advance — Quiet Be2')
+            expect(options).to_contain_text('Other good moves for White')
 
-            page.get_by_role('button', name='Try 4.Be2').click()
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            new_response = options.locator('[data-opponent-move="4.Be2"]')
+            expect(new_response).to_contain_text('New response')
+            expect(new_response.get_by_role('button', name='Learn response')).to_be_visible()
+
+            covered = options.locator('[data-opponent-move="4.h4"]')
+            expect(covered).to_contain_text('Covered elsewhere')
+            expect(covered).to_contain_text('Advance — h4 / Tal ideas')
+            expect(covered.get_by_role('button', name='Learn lesson')).to_be_visible()
+
+            # Finish the canonical lesson first. The end state must surface only
+            # genuinely new responses, even though covered branches were shown inline.
+            for move in ['e7e6', 'c6c5', 'b8c6', 'g8e7']:
+                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+                click_move(page, move)
+
+            expect(page.locator('#prompt')).to_contain_text('Complete')
+            response_summary = page.locator('#response-summary')
+            expect(response_summary).to_be_visible()
+            expect(response_summary).to_contain_text('Responses to learn')
+            expect(response_summary).to_contain_text('0/1 learned')
+            expect(response_summary).to_contain_text('4.Be2')
+            expect(response_summary).not_to_contain_text('4.h4')
+
+            response_summary.get_by_role('button', name='Learn response').click()
+            expect(page.locator('#line-title')).to_have_text('Another good move: 4.Be2')
+            expect(page.locator('#line-variation')).to_contain_text('New response')
+            expect(page.locator('#prompt')).to_contain_text('How should Black respond?')
+
+            # One correct repertoire response is enough to learn the response.
+            # The representative continuation is explanatory in Learn, not another
+            # sequence the learner must execute.
             click_move(page, 'e7e6')
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-            click_move(page, 'c6c5')
-            expect(page.locator('#feedback')).to_contain_text('Variation complete — Advance — Quiet Be2')
-            expect(page.locator('#next-line')).to_have_text('Return to main line')
+            expect(page.locator('#prompt')).to_contain_text('Response learned')
+            expect(page.locator('#prompt')).to_contain_text('Typical continuation')
+            expect(page.locator('#next-line')).to_have_text('Return to lesson')
 
-            learned = page.evaluate("""() => {
+            progress = page.evaluate("""() => {
               const raw = localStorage.getItem('openrep:v1:caro-kann-black');
-              return JSON.parse(raw).learnedDeviations;
+              return JSON.parse(raw);
             }""")
-            assert 'micro:advance-quiet-be2' in learned
+            assert progress['learnedResponses'] == ['advance-quiet-be2']
+            assert 'learnedDeviations' not in progress
 
+            # Returning from a response learned at lesson-end restores the completed
+            # lesson instead of restarting it.
+            page.get_by_role('button', name='Return to lesson').click()
+            expect(page.locator('#line-title')).to_have_text('Advance — Main setup')
+            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect(response_summary).to_contain_text('1/1 learned')
+            expect(response_summary.get_by_role('button', name='Review response')).to_be_visible()
+
+            # Remount with deterministic randomness so Practice must choose the newly
+            # learned response route. Covered branches remain ineligible until their
+            # actual lessons have been discovered.
             page.evaluate("""async () => {
-              const [{caroKann}, {caroKannDeviations}, {CoachingTrainerApp}] = await Promise.all([
+              const [{caroKann}, {caroKannResponses}, {CoachingTrainerApp}] = await Promise.all([
                 import('./src/openings/caro-kann.js'),
-                import('./src/openings/caro-kann-deviations.js?v=opponent-deviations-v1'),
-                import('./src/coaching-trainer.js?v=opponent-deviations-v1')
+                import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
+                import('./src/coaching-trainer.js?v=response-learning-v2')
               ]);
               document.querySelector('#app').replaceChildren();
               const app = new CoachingTrainerApp(
                 document.querySelector('#app'),
-                {...caroKann, deviations: caroKannDeviations},
+                {...caroKann, responses: caroKannResponses},
                 {evaluator: null, random: () => 0}
               );
               app.mount();
@@ -72,11 +110,16 @@ def run():
 
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert is_highlighted(page, 'e2')
-            expect(page.locator('#line-variation')).to_contain_text('4.Be2')
-            expect(page.locator('#line-variation')).to_contain_text('Advance — Quiet Be2')
+            expect(page.locator('#line-variation')).to_contain_text('4.Be2 response')
+
+            click_move(page, 'e7e6')
+            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            click_move(page, 'c6c5')
+            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect(page.locator('#grading')).to_be_visible()
 
             browser.close()
-            print('opponent deviation Learn/Practice flow passed')
+            print('opponent response Learn/Practice flow passed')
     finally:
         server.shutdown()
         server.server_close()

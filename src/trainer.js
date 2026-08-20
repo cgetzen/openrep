@@ -2,7 +2,7 @@ import { MiniChess } from './mini-chess.js';
 import { ChessBoard } from './chess-board.js';
 import { defaultLineProgress, loadProgress, resetProgress, saveProgress, scheduleReview } from './progress.js';
 import { normalizePracticeSelection, pickPracticeLineIndex as selectPracticeLineIndex } from './practice-selection.js';
-import { RepertoireMoveIndex } from './repertoire-moves.js?v=opponent-deviations-v1';
+import { RepertoireMoveIndex } from './repertoire-moves.js?v=response-learning-v2';
 
 export class TrainerApp {
   constructor(root, course, options = {}) {
@@ -19,6 +19,7 @@ export class TrainerApp {
     this.lineIndex = 0;
     this.sessionRoute = this.repertoire.canonicalRoute(this.line);
     this.learnOpponentOptions = [];
+    this.responseReturn = null;
     this.ply = 0;
     this.viewPly = null;
     this.mistakesThisLine = 0;
@@ -75,7 +76,8 @@ export class TrainerApp {
             <h2 id="line-title"></h2>
             <p class="variation" id="line-variation"></p>
             <div class="prompt" id="prompt"></div>
-            <section id="opponent-options" class="opponent-options hidden" aria-label="Opponent alternatives"></section>
+            <section id="opponent-options" class="opponent-options hidden" aria-label="Other good opponent moves"></section>
+            <section id="response-summary" class="response-summary hidden" aria-label="Responses to learn"></section>
             <div class="feedback" id="feedback" aria-live="polite"></div>
             <div id="grading" class="grading hidden">
               <p>How well did that line stick?</p>
@@ -138,6 +140,10 @@ export class TrainerApp {
     return ({ learn: 'discover lines', practice: 'test your recall' })[mode];
   }
 
+  isLearnResponseLesson() {
+    return this.mode === 'learn' && this.sessionRoute?.coverage === 'new-response';
+  }
+
   setMode(mode) {
     if (!['learn', 'practice'].includes(mode)) return;
     this.mode = mode;
@@ -175,6 +181,7 @@ export class TrainerApp {
     this.lineFinished = true;
     this.viewPly = null;
     this.learnOpponentOptions = [];
+    this.responseReturn = null;
     this.board.clearSelection();
     this.clearFeedback();
     this.showFeedback('No spaced reviews are due right now.', 'correct');
@@ -185,6 +192,7 @@ export class TrainerApp {
     this.practiceCaughtUp = false;
     this.lineIndex = index;
     this.line = this.course.lines[index];
+    this.responseReturn = null;
     const route = this.mode === 'practice'
       ? this.repertoire.pickPracticeRoute(this.line, this.progress, this.random)
       : this.repertoire.canonicalRoute(this.line);
@@ -221,6 +229,16 @@ export class TrainerApp {
     return this.sessionRoute?.notes?.[ply] ?? '';
   }
 
+  recordTrainingMistake() {
+    this.mistakesThisLine += 1;
+    if (this.isLearnResponseLesson()) return;
+
+    const progress = this.progress.lines[this.line.id] ?? defaultLineProgress();
+    progress.mistakes += 1;
+    this.progress.lines[this.line.id] = progress;
+    saveProgress(this.course.id, this.progress);
+  }
+
   autoPlayIfNeeded() {
     if (this.lineFinished || this.ply >= this.sessionRoute.moves.length) return;
     if (this.chess.turn() === this.course.side) { this.refresh(); return; }
@@ -242,11 +260,82 @@ export class TrainerApp {
     }
   }
 
-  tryOpponentVariation(routeId) {
+  findNewResponseRoute(routeId) {
+    const candidates = [
+      ...this.learnOpponentOptions,
+      ...this.repertoire.newResponsesForLine(this.line)
+    ];
+    return candidates.find(route => route.id === routeId && route.coverage === 'new-response') ?? null;
+  }
+
+  startResponseLesson(routeId) {
     if (this.mode !== 'learn') return;
-    const route = this.learnOpponentOptions.find(candidate => candidate.id === routeId);
+    const route = this.findNewResponseRoute(routeId);
     if (!route) return;
+
+    this.responseReturn = {
+      lineIndex: this.lineIndex,
+      lineId: this.line.id,
+      ply: this.ply,
+      lineFinished: this.lineFinished,
+      mistakesThisLine: this.mistakesThisLine,
+      learnOpponentOptions: [...this.learnOpponentOptions]
+    };
     this.beginRoute(route, route.divergencePly ?? 0);
+  }
+
+  openCoveredLesson(routeId) {
+    if (this.mode !== 'learn') return;
+    const route = this.learnOpponentOptions.find(candidate =>
+      candidate.id === routeId && candidate.coverage === 'covered-elsewhere'
+    );
+    if (!route?.targetLineId) return;
+    const targetIndex = this.course.lines.findIndex(line => line.id === route.targetLineId);
+    if (targetIndex >= 0) this.startLine(targetIndex);
+  }
+
+  returnToLesson() {
+    const state = this.responseReturn;
+    if (!state) {
+      this.startLine(this.lineIndex);
+      return;
+    }
+
+    const line = this.course.lines[state.lineIndex];
+    if (!line || line.id !== state.lineId) {
+      this.startLine(this.lineIndex);
+      return;
+    }
+
+    this.lineIndex = state.lineIndex;
+    this.line = line;
+    this.sessionRoute = this.repertoire.canonicalRoute(line);
+    this.chess.reset();
+    for (const move of this.sessionRoute.moves.slice(0, state.ply)) this.chess.moveUci(move);
+    this.ply = state.ply;
+    this.viewPly = null;
+    this.mistakesThisLine = state.mistakesThisLine;
+    this.lineFinished = state.lineFinished;
+    this.learnOpponentOptions = state.learnOpponentOptions;
+    this.responseReturn = null;
+    this.board.clearSelection();
+    this.clearFeedback();
+    this.refresh();
+  }
+
+  markResponseLearned(responseId) {
+    if (!responseId) return;
+    const learned = new Set(this.progress.learnedResponses ?? []);
+    learned.add(responseId);
+    this.progress.learnedResponses = [...learned];
+  }
+
+  completeResponseLesson(move, note) {
+    this.lineFinished = true;
+    this.markResponseLearned(this.sessionRoute.responseId);
+    saveProgress(this.course.id, this.progress);
+    this.showFeedback(note ? `${move.san} — ${note}` : `${move.san}. Correct.`, 'correct');
+    this.refresh();
   }
 
   onUserMove(from, to) {
@@ -254,13 +343,9 @@ export class TrainerApp {
     const expected = this.currentExpectedMove();
     const attempted = `${from}${to}`;
     if (!expected?.startsWith(attempted)) {
-      this.mistakesThisLine += 1;
+      this.recordTrainingMistake();
       const expectedNotation = expected ? this.chess.notationFor(expected) : '';
       this.showFeedback(this.mode === 'learn' ? `Not quite. Look for ${expectedNotation}.` : 'Not in the repertoire. Try again.', 'wrong');
-      const p = this.progress.lines[this.line.id] ?? defaultLineProgress();
-      p.mistakes += 1;
-      this.progress.lines[this.line.id] = p;
-      saveProgress(this.course.id, this.progress);
       this.board.clearSelection();
       this.refreshBoardState();
       return;
@@ -272,6 +357,12 @@ export class TrainerApp {
       this.ply += 1;
       this.board.clearSelection();
       const note = this.currentRouteNote(moveIndex);
+
+      if (this.isLearnResponseLesson() && moveIndex === this.sessionRoute.responsePly) {
+        this.completeResponseLesson(move, note);
+        return;
+      }
+
       this.showFeedback(note ? `${move.san} — ${note}` : `${move.san}. Correct.`, 'correct');
       this.refresh();
       if (this.ply >= this.sessionRoute.moves.length) this.finishLine();
@@ -301,44 +392,24 @@ export class TrainerApp {
     return { chess, lastOpponentMove };
   }
 
-  markDeviationLearned() {
-    if (!this.sessionRoute || this.sessionRoute.kind === 'canonical') return;
-    const learned = new Set(this.progress.learnedDeviations ?? []);
-    learned.add(this.sessionRoute.id);
-    this.progress.learnedDeviations = [...learned];
-  }
-
   finishLine() {
     this.lineFinished = true;
-    const deviation = this.sessionRoute.kind !== 'canonical';
-    if (deviation) {
-      this.markDeviationLearned();
-    } else if (!this.progress.discovered.includes(this.line.id)) {
+    if (this.mode === 'learn' && this.sessionRoute.kind === 'canonical'
+      && !this.progress.discovered.includes(this.line.id)) {
       this.progress.discovered.push(this.line.id);
     }
     this.progress.totalSessions += 1;
     saveProgress(this.course.id, this.progress);
 
-    if (deviation) {
-      const suffix = this.sessionRoute.idea ? ` ${this.sessionRoute.idea}` : '';
-      this.showFeedback(
-        this.mistakesThisLine === 0
-          ? `Variation complete — ${this.sessionRoute.label}.${suffix}`
-          : `Variation complete — ${this.mistakesThisLine} mistake${this.mistakesThisLine === 1 ? '' : 's'}.${suffix}`,
-        this.mistakesThisLine === 0 ? 'correct' : 'neutral'
-      );
-    } else {
-      this.showFeedback(
-        this.mistakesThisLine === 0 ? 'Line complete — clean rep.' : `Line complete — ${this.mistakesThisLine} mistake${this.mistakesThisLine === 1 ? '' : 's'}.`,
-        this.mistakesThisLine === 0 ? 'correct' : 'neutral'
-      );
-    }
+    this.showFeedback(
+      this.mistakesThisLine === 0 ? 'Line complete — clean rep.' : `Line complete — ${this.mistakesThisLine} mistake${this.mistakesThisLine === 1 ? '' : 's'}.`,
+      this.mistakesThisLine === 0 ? 'correct' : 'neutral'
+    );
     this.refresh();
   }
 
   gradeLine(grade) {
-    if (this.practiceCaughtUp) return;
-    if (this.mode === 'learn' && this.sessionRoute.kind !== 'canonical') return;
+    if (this.practiceCaughtUp || this.isLearnResponseLesson()) return;
     const current = this.progress.lines[this.line.id] ?? defaultLineProgress();
     this.progress.lines[this.line.id] = scheduleReview(current, grade);
     saveProgress(this.course.id, this.progress);
@@ -350,12 +421,76 @@ export class TrainerApp {
       this.startPracticeQueue();
       return;
     }
-    if (this.sessionRoute.kind !== 'canonical') {
-      this.startLine(this.lineIndex);
+    if (this.isLearnResponseLesson()) {
+      this.returnToLesson();
       return;
     }
     this.lineIndex = (this.lineIndex + 1) % this.course.lines.length;
     this.startLine(this.lineIndex);
+  }
+
+  appendOpponentOptionGroup(panel, label, routes) {
+    if (!routes.length) return;
+
+    const group = document.createElement('div');
+    group.className = 'opponent-options-group';
+    const groupLabel = document.createElement('div');
+    groupLabel.className = 'opponent-options-group-label';
+    groupLabel.textContent = label;
+    group.append(groupLabel);
+
+    const list = document.createElement('div');
+    list.className = 'opponent-options-list';
+    for (const route of routes) {
+      const item = document.createElement('div');
+      item.className = `opponent-option ${route.coverage}`;
+      item.dataset.opponentMove = route.opponentLabel;
+
+      const copy = document.createElement('div');
+      copy.className = 'opponent-option-copy';
+      const titleRow = document.createElement('div');
+      titleRow.className = 'opponent-option-title';
+      const title = document.createElement('strong');
+      title.textContent = route.opponentLabel;
+      const badge = document.createElement('span');
+      badge.className = 'coverage-badge';
+      badge.textContent = route.coverage === 'new-response' ? 'New response' : 'Covered elsewhere';
+      titleRow.append(title, badge);
+
+      const idea = document.createElement('span');
+      if (route.coverage === 'new-response') {
+        idea.textContent = route.idea;
+      } else {
+        const extra = route.targetTitles.length > 1 ? ` and ${route.targetTitles.length - 1} more` : '';
+        idea.textContent = `Covered in “${route.label}”${extra}. ${route.idea}`;
+      }
+      copy.append(titleRow, idea);
+
+      const action = document.createElement('button');
+      action.type = 'button';
+      action.className = 'deviation-btn';
+      action.dataset.deviationRoute = route.id;
+      if (route.coverage === 'new-response') {
+        const learned = this.repertoire.isResponseLearned(route, this.progress);
+        action.textContent = learned ? 'Review response' : 'Learn response';
+        if (learned) {
+          const learnedLabel = document.createElement('span');
+          learnedLabel.className = 'opponent-option-status';
+          learnedLabel.textContent = `Learned · ${route.responseLabel}`;
+          copy.append(learnedLabel);
+        }
+        action.addEventListener('click', () => this.startResponseLesson(route.id));
+      } else {
+        const discovered = this.repertoire.isCoveredLessonDiscovered(route, this.progress);
+        action.textContent = discovered ? 'Review lesson' : 'Learn lesson';
+        action.addEventListener('click', () => this.openCoveredLesson(route.id));
+      }
+
+      item.append(copy, action);
+      list.append(item);
+    }
+    group.append(list);
+    panel.append(group);
   }
 
   renderOpponentOptions() {
@@ -371,35 +506,69 @@ export class TrainerApp {
     const heading = document.createElement('div');
     heading.className = 'opponent-options-heading';
     const strong = document.createElement('strong');
-    strong.textContent = 'White had other good choices';
+    strong.textContent = 'Other good moves for White';
     const small = document.createElement('span');
-    small.textContent = 'Learn the response, not just the move order.';
+    small.textContent = 'Learn new responses here; moves already taught elsewhere stay linked to their lesson.';
+    heading.append(strong, small);
+    panel.append(heading);
+
+    const newResponses = this.learnOpponentOptions.filter(route => route.coverage === 'new-response');
+    const coveredElsewhere = this.learnOpponentOptions.filter(route => route.coverage === 'covered-elsewhere');
+    this.appendOpponentOptionGroup(panel, 'New responses', newResponses);
+    this.appendOpponentOptionGroup(panel, 'Covered elsewhere', coveredElsewhere);
+  }
+
+  renderResponseSummary() {
+    const panel = this.root.querySelector('#response-summary');
+    const responses = this.mode === 'learn' && this.lineFinished && this.sessionRoute.kind === 'canonical'
+      ? this.repertoire.newResponsesForLine(this.line)
+      : [];
+    panel.classList.toggle('hidden', responses.length === 0);
+    panel.replaceChildren();
+    if (!responses.length) return;
+
+    const learnedCount = responses.filter(route => this.repertoire.isResponseLearned(route, this.progress)).length;
+    const heading = document.createElement('div');
+    heading.className = 'response-summary-heading';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Responses to learn';
+    const small = document.createElement('span');
+    small.textContent = `${learnedCount}/${responses.length} learned · The main lesson is complete; these cover other practical White choices.`;
     heading.append(strong, small);
     panel.append(heading);
 
     const list = document.createElement('div');
-    list.className = 'opponent-options-list';
-    for (const route of this.learnOpponentOptions) {
+    list.className = 'response-summary-list';
+    for (const route of responses) {
+      const learned = this.repertoire.isResponseLearned(route, this.progress);
       const item = document.createElement('div');
-      item.className = 'opponent-option';
+      item.className = `response-summary-item${learned ? ' learned' : ''}`;
 
       const copy = document.createElement('div');
       copy.className = 'opponent-option-copy';
+      const titleRow = document.createElement('div');
+      titleRow.className = 'opponent-option-title';
       const title = document.createElement('strong');
-      const extra = route.targetTitles.length > 1 ? ` + ${route.targetTitles.length - 1} more` : '';
-      title.textContent = `${route.opponentLabel} · ${route.label}${extra}`;
+      title.textContent = route.opponentLabel;
+      const badge = document.createElement('span');
+      badge.className = 'coverage-badge';
+      badge.textContent = learned ? 'Learned ✓' : 'New response';
+      titleRow.append(title, badge);
       const idea = document.createElement('span');
       idea.textContent = route.idea;
-      copy.append(title, idea);
+      copy.append(titleRow, idea);
+      if (learned) {
+        const status = document.createElement('span');
+        status.className = 'opponent-option-status';
+        status.textContent = `Your response: ${route.responseLabel}`;
+        copy.append(status);
+      }
 
       const action = document.createElement('button');
       action.type = 'button';
       action.className = 'deviation-btn';
-      action.dataset.deviationRoute = route.id;
-      const learned = this.repertoire.isRouteLearned(route, this.progress);
-      action.textContent = learned ? `Review ${route.opponentLabel}` : `Try ${route.opponentLabel}`;
-      action.addEventListener('click', () => this.tryOpponentVariation(route.id));
-
+      action.textContent = learned ? 'Review response' : 'Learn response';
+      action.addEventListener('click', () => this.startResponseLesson(route.id));
       item.append(copy, action);
       list.append(item);
     }
@@ -414,28 +583,51 @@ export class TrainerApp {
       button.classList.toggle('active', button.dataset.practiceSelection === this.practiceSelection);
     });
 
+    const responseLesson = this.isLearnResponseLesson();
     const hintButton = this.root.querySelector('#hint-toggle');
     hintButton.textContent = `Hint: ${this.hintEnabled ? 'on' : 'off'}`;
     const practiceLabel = this.mode === 'practice' ? ` · ${this.practiceSelection.toUpperCase()}` : '';
     const caughtUpLabel = this.practiceCaughtUp ? ' · CAUGHT UP' : '';
     this.root.querySelector('#line-counter').textContent = this.practiceCaughtUp
       ? `${this.mode.toUpperCase()}${practiceLabel}${caughtUpLabel}`
-      : `${this.mode.toUpperCase()}${practiceLabel} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
-    this.root.querySelector('#line-title').textContent = this.practiceCaughtUp ? 'Spaced reviews complete' : this.line.title;
+      : responseLesson
+        ? `LEARN · RESPONSE · Line ${this.lineIndex + 1}/${this.course.lines.length}`
+        : `${this.mode.toUpperCase()}${practiceLabel} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
+
+    this.root.querySelector('#line-title').textContent = this.practiceCaughtUp
+      ? 'Spaced reviews complete'
+      : responseLesson
+        ? `Another good move: ${this.sessionRoute.opponentLabel}`
+        : this.line.title;
+
     this.root.querySelector('#line-variation').textContent = this.practiceCaughtUp
       ? 'Nothing else is due right now.'
-      : this.sessionRoute.kind === 'canonical'
-        ? this.line.variation
-        : `${this.line.variation} · ${this.sessionRoute.opponentLabel}: ${this.sessionRoute.label}`;
+      : responseLesson
+        ? `New response · from ${this.line.title}`
+        : this.sessionRoute.kind === 'canonical'
+          ? this.line.variation
+          : this.sessionRoute.coverage === 'covered-elsewhere'
+            ? `${this.line.variation} · ${this.sessionRoute.opponentLabel} routes into ${this.sessionRoute.label}`
+            : `${this.line.variation} · ${this.sessionRoute.opponentLabel} response`;
 
     const prompt = this.root.querySelector('#prompt');
     if (this.practiceCaughtUp) {
       prompt.innerHTML = '<strong>You’re caught up.</strong><span>No spaced reviews are due right now. Switch to Weak for extra practice.</span>';
     } else if (this.viewPly !== null) {
       prompt.innerHTML = `<strong>Reviewing this route.</strong><span>Position ${this.viewPly} of ${this.ply}. Use → to return to the current position.</span>`;
+    } else if (responseLesson && this.lineFinished) {
+      const example = this.sessionRoute.exampleLabels?.length
+        ? ` Typical continuation: ${this.sessionRoute.exampleLabels.join(' ')}.`
+        : '';
+      prompt.innerHTML = `<strong>Response learned ✓</strong><span>${this.sessionRoute.responseLabel} is your repertoire response. ${this.sessionRoute.idea}${example}</span>`;
+    } else if (responseLesson && this.chess.turn() === this.course.side) {
+      const expected = this.currentExpectedMove();
+      const clue = this.hintEnabled || this.mode === 'learn' ? ` Find ${this.chess.notationFor(expected)}.` : '';
+      prompt.innerHTML = `<strong>How should Black respond?</strong><span>${this.sessionRoute.idea}${clue}</span>`;
+    } else if (responseLesson) {
+      prompt.innerHTML = `<strong>White could also play ${this.sessionRoute.opponentLabel}.</strong><span>This move is not taught in another lesson. Learn the repertoire response here.</span>`;
     } else if (this.lineFinished) {
-      const completeSummary = this.sessionRoute.kind === 'canonical' ? this.line.summary : this.sessionRoute.idea;
-      prompt.innerHTML = `<strong>Complete.</strong><span>${completeSummary}</span>`;
+      prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
     } else if (this.chess.turn() === this.course.side && this.ply < this.sessionRoute.moves.length) {
       const expected = this.currentExpectedMove();
       const clue = this.mode === 'learn' || this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
@@ -445,18 +637,19 @@ export class TrainerApp {
       prompt.innerHTML = '<strong>Opponent move.</strong><span>Watch White’s choice, then respond from the repertoire.</span>';
     }
 
-    const learnDeviationComplete = this.mode === 'learn' && this.sessionRoute.kind !== 'canonical';
-    this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished || this.practiceCaughtUp || learnDeviationComplete);
+    this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished || this.practiceCaughtUp || responseLesson);
     const nextLineButton = this.root.querySelector('#next-line');
-    nextLineButton.disabled = this.mode === 'practice';
+    nextLineButton.disabled = this.mode === 'practice' || (responseLesson && !this.lineFinished);
     nextLineButton.textContent = this.mode === 'practice'
       ? (this.practiceCaughtUp ? 'Reviews complete' : this.lineFinished ? 'Grade to continue' : 'Practice queue')
-      : this.lineFinished && this.sessionRoute.kind !== 'canonical'
-        ? 'Return to main line'
+      : responseLesson
+        ? (this.lineFinished ? 'Return to lesson' : 'Complete response')
         : 'Next line →';
+    this.root.querySelector('#prev-line').disabled = responseLesson;
     this.root.querySelector('#reset-line').disabled = this.practiceCaughtUp;
 
     this.renderOpponentOptions();
+    this.renderResponseSummary();
     this.renderProgress();
     this.renderLineList();
     this.refreshBoardState();
