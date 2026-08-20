@@ -49,8 +49,12 @@ def run():
             lines = get_course_lines(page, injected)
             now = page.evaluate('Date.now()')
             future = now + 24 * 60 * 60 * 1000
+            scheduled_line = lines[-1]
             progress = {
-                'discovered': [line['id'] for line in lines],
+                # This fixture isolates the spaced scheduler. Marking every lesson
+                # discovered makes learned alternate routes intentionally eligible in
+                # Practice, which is tested separately in opponent-deviations.py.
+                'discovered': [scheduled_line['id']],
                 'lines': {
                     line['id']: {
                         'repetitions': 1,
@@ -65,7 +69,7 @@ def run():
                 },
                 'totalSessions': len(lines),
             }
-            progress['lines'][lines[-1]['id']]['dueAt'] = now - 1000
+            progress['lines'][scheduled_line['id']]['dueAt'] = now - 1000
             storage_key = f'openrep:v1:{course_id(page, injected)}'
             page.evaluate(
                 '([key, value]) => localStorage.setItem(key, value)',
@@ -75,10 +79,10 @@ def run():
 
             practice = page.get_by_role('button', name='Practice test your recall')
             practice.click()
-            expect(page.locator('#line-title')).to_have_text(lines[-1]['title'])
+            expect(page.locator('#line-title')).to_have_text(scheduled_line['title'])
             expect(page.locator('#line-counter')).to_contain_text('PRACTICE · SPACED')
 
-            for uci in lines[-1]['moves'][1::2]:
+            for uci in scheduled_line['moves'][1::2]:
                 expect(page.locator('#prompt')).to_contain_text('Your move as Black')
                 print(f'spaced regression move: {uci}', flush=True)
                 click_move(page, uci)
