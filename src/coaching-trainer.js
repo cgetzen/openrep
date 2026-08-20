@@ -1,15 +1,14 @@
-import { TrainerApp } from './trainer.js?v=practice-spaced-v2';
+import { TrainerApp } from './trainer.js?v=opponent-deviations-v1';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
-import { RepertoireMoveIndex, summarizeExactBranchMatches } from './repertoire-moves.js?v=branch-feedback-v2';
+import { summarizeExactBranchMatches } from './repertoire-moves.js?v=opponent-deviations-v1';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { classifyMoveQuality, formatMoveQualityLabel } from './evaluation.js?v=move-quality-v1';
 import { StockfishEvaluator } from './stockfish-evaluator.js?v=move-quality-v1';
 
 export class CoachingTrainerApp extends TrainerApp {
   constructor(root, course, options = {}) {
-    super(root, course);
-    this.repertoireMoves = new RepertoireMoveIndex(course);
+    super(root, course, options);
     this.evaluator = Object.prototype.hasOwnProperty.call(options, 'evaluator')
       ? options.evaluator
       : (typeof StockfishEvaluator === 'undefined' ? null : new StockfishEvaluator());
@@ -18,9 +17,9 @@ export class CoachingTrainerApp extends TrainerApp {
     this.evaluationBar = null;
   }
 
-  startLine(index) {
+  beginRoute(route, startPly = 0) {
     this.wrongMoveEvaluationRequest += 1;
-    super.startLine(index);
+    super.beginRoute(route, startPly);
   }
 
   renderShell() {
@@ -130,7 +129,13 @@ export class CoachingTrainerApp extends TrainerApp {
   onUserMove(from, to) {
     if (this.viewPly !== null || this.lineFinished || this.chess.turn() !== this.course.side) return;
     const attempted = `${from}${to}`;
-    const classification = this.repertoireMoves.classify(this.chess, this.line, this.ply, attempted);
+    const classification = this.repertoire.classify(
+      this.chess,
+      this.line,
+      this.ply,
+      attempted,
+      this.currentExpectedMove()
+    );
 
     if (classification.kind === 'expected') {
       this.wrongMoveEvaluationRequest += 1;
@@ -150,7 +155,7 @@ export class CoachingTrainerApp extends TrainerApp {
         this.chess,
         attempted,
         classification.expected,
-        this.line.notes[this.ply] ?? ''
+        this.currentRouteNote()
       );
       explanationArrow = explanation.arrow;
       this.showFeedback(explanation.message, 'wrong');

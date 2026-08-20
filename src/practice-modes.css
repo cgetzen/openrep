@@ -60,6 +60,77 @@
   background: var(--accent);
 }
 
+.opponent-options {
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.opponent-options.hidden {
+  display: none;
+}
+
+.opponent-options-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 9px;
+}
+
+.opponent-options-heading strong {
+  font-size: 12px;
+}
+
+.opponent-options-heading span,
+.opponent-option-copy span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.opponent-options-list {
+  display: grid;
+  gap: 7px;
+}
+
+.opponent-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+
+.opponent-option-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.opponent-option-copy strong {
+  font-size: 12px;
+}
+
+.deviation-btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--panel);
+  color: #f4f3ed;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.deviation-btn:hover {
+  border-color: var(--accent);
+}
+
 @media (max-width: 560px) {
   .practice-options {
     align-items: stretch;
@@ -74,5 +145,13 @@
 
   .practice-option {
     min-width: 0;
+  }
+
+  .opponent-option {
+    grid-template-columns: 1fr;
+  }
+
+  .deviation-btn {
+    justify-self: start;
   }
 }

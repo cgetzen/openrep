@@ -12,7 +12,7 @@ export function defaultLineProgress(now = Date.now()) {
 }
 
 export function defaultCourseProgress() {
-  return { discovered: [], lines: {}, totalSessions: 0 };
+  return { discovered: [], learnedDeviations: [], lines: {}, totalSessions: 0 };
 }
 
 export function scheduleReview(current, grade, now = Date.now()) {
