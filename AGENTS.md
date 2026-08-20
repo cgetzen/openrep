@@ -56,6 +56,16 @@ In particular:
 - Do not use labels, lesson IDs, authoring anchors, or source-specific IDs as identity when the underlying domain object has a more stable key.
 - Validate domain uniqueness/invariants at construction boundaries so bad course data fails fast instead of producing duplicate or contradictory UI later.
 
+### Learn / Practice parity invariant
+
+Learn and Practice should share trainer behavior and UI by default. Differences between the modes are a frequent source of regressions and must be kept deliberately small.
+
+- Implement new teaching, feedback, move-acceptance, completion, board, and explanation behavior through shared code paths unless a mode-specific pedagogical requirement makes that impossible.
+- Restrict ordinary mode differences to material selection, discovery/progress state, scheduling/grading, and other explicitly mode-owned workflow mechanics.
+- Do not create lighter, denser, differently worded, or otherwise divergent Learn/Practice presentations merely because the mode names differ.
+- Any new `mode === 'learn'` or `mode === 'practice'` behavior branch that changes the learning interaction must have a concrete product justification and parity/regression coverage where practical.
+- When fixing a trainer behavior bug, verify the shared behavior in both Learn and Practice unless the behavior is inherently specific to one mode.
+
 ## 4. Architecture invariants
 
 OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
