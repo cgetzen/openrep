@@ -1,7 +1,7 @@
 import { TrainerApp } from './trainer.js';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
-import { EvaluationBar } from './evaluation-bar.js';
+import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { StockfishEvaluator } from './stockfish-evaluator.js';
 
 export class CoachingTrainerApp extends TrainerApp {

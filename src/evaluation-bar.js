@@ -1,4 +1,4 @@
-import { formatCompactEvaluation, formatEvaluation, scoreToWhiteShare } from './evaluation.js';
+import { formatCompactEvaluation, formatEvaluation, scoreToWhiteShare } from './evaluation.js?v=eval-bar-v4';
 
 export class EvaluationBar {
   constructor(element, orientation = 'w') {
@@ -37,7 +37,7 @@ export class EvaluationBar {
     const share = scoreToWhiteShare(score);
     const text = formatEvaluation(score);
     this.element.dataset.state = 'ready';
-    this.element.dataset.scoreSide = score.value < 0 ? 'black' : 'white';
+    this.element.dataset.scoreSide = score.value > 0 ? 'white' : score.value < 0 ? 'black' : 'equal';
     this.scoreElement.textContent = formatCompactEvaluation(score);
     this.setShare(share);
     this.element.setAttribute('aria-valuetext', text);

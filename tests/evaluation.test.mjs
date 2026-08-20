@@ -63,10 +63,10 @@ test('formats centipawn and mate evaluations for accessibility text', () => {
   assert.equal(formatEvaluation({ type: 'mate', value: 4 }), 'White mate in 4');
 });
 
-test('formats compact scores for the visible evaluation bar', () => {
-  assert.equal(formatCompactEvaluation({ type: 'cp', value: 42 }), '+0.42');
-  assert.equal(formatCompactEvaluation({ type: 'cp', value: -125 }), '-1.25');
+test('formats unsigned compact scores for placement-based advantage display', () => {
+  assert.equal(formatCompactEvaluation({ type: 'cp', value: 42 }), '0.42');
+  assert.equal(formatCompactEvaluation({ type: 'cp', value: -125 }), '1.25');
   assert.equal(formatCompactEvaluation({ type: 'cp', value: 0 }), '0.00');
   assert.equal(formatCompactEvaluation({ type: 'mate', value: 3 }), 'M3');
-  assert.equal(formatCompactEvaluation({ type: 'mate', value: -2 }), '-M2');
+  assert.equal(formatCompactEvaluation({ type: 'mate', value: -2 }), 'M2');
 });
