@@ -5,7 +5,8 @@ import {
   normalizePracticeSelection,
   pickPracticeLineIndex,
   pickSpacedLineIndex,
-  pickWeakLineIndex
+  pickWeakLineIndex,
+  practiceRoutePresentation
 } from '../src/practice-selection.js';
 
 const lines = [
@@ -20,6 +21,43 @@ test('practice selection defaults to spaced', () => {
   assert.equal(normalizePracticeSelection('spaced'), 'spaced');
   assert.equal(normalizePracticeSelection('weak'), 'weak');
   assert.equal(normalizePracticeSelection('time'), 'spaced');
+});
+
+test('practice presentation follows the active covered branch instead of the scheduled source line', () => {
+  const sourceLine = {
+    title: 'Hillbilly Attack',
+    variation: '1.e4 c6 2.Bc4 d5'
+  };
+  const route = {
+    kind: 'branch',
+    label: '2.Nf3 — Flexible response',
+    divergencePly: 2,
+    moves: ['e2e4', 'c7c6', 'g1f3', 'd7d5', 'e4d5', 'c6d5']
+  };
+
+  assert.deepEqual(practiceRoutePresentation(sourceLine, route), {
+    title: '2.Nf3 — Flexible response',
+    variation: '1.e4 c6 2.Nf3 d5'
+  });
+});
+
+test('practice presentation names learned standalone responses and shows the route through the response', () => {
+  const sourceLine = {
+    title: 'Advance — h4 / Tal ideas',
+    variation: '1.e4 c6 2.d4 d5 3.e5 Bf5 4.h4 h5'
+  };
+  const route = {
+    kind: 'response',
+    teachingOwnerTitle: 'Advance — Main setup',
+    responseTopicLabel: 'Quiet development',
+    divergencePly: 6,
+    moves: ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5', 'c8f5', 'f1e2', 'e7e6']
+  };
+
+  assert.deepEqual(practiceRoutePresentation(sourceLine, route), {
+    title: 'Advance — Main setup — Quiet development',
+    variation: '1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6'
+  });
 });
 
 test('spaced practice chooses the earliest due line and breaks ties by repetitions', () => {
