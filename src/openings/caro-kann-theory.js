@@ -41,7 +41,7 @@ const caroKannDecisionCues = {
     5: 'Resolve the central tension while White’s knight can recapture into an exposed square.',
     7: 'Develop actively with tempo against the centralized knight.',
     9: 'Keep the bishop active while making White spend more time to chase it.',
-    11: 'Give the bishop a safe retreat before White gains more space with h5–h6.',
+    11: 'Give the bishop a safe retreat before White’s h-pawn gains more space.',
     13: 'Finish developing behind the compact center and prepare ...Ngf6.',
     15: 'Keep the bishop safe without abandoning its useful diagonal.'
   },
