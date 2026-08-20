@@ -3,7 +3,8 @@ import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
 import { RepertoireMoveIndex, summarizeExactBranchMatches } from './repertoire-moves.js?v=branch-feedback-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
-import { StockfishEvaluator } from './stockfish-evaluator.js';
+import { classifyMoveQuality, formatMoveQualityLabel } from './evaluation.js?v=move-quality-v1';
+import { StockfishEvaluator } from './stockfish-evaluator.js?v=move-quality-v1';
 
 export class CoachingTrainerApp extends TrainerApp {
   constructor(root, course, options = {}) {
@@ -13,7 +14,13 @@ export class CoachingTrainerApp extends TrainerApp {
       ? options.evaluator
       : (typeof StockfishEvaluator === 'undefined' ? null : new StockfishEvaluator());
     this.evaluationRequest = 0;
+    this.wrongMoveEvaluationRequest = 0;
     this.evaluationBar = null;
+  }
+
+  startLine(index) {
+    this.wrongMoveEvaluationRequest += 1;
+    super.startLine(index);
   }
 
   renderShell() {
@@ -48,6 +55,27 @@ export class CoachingTrainerApp extends TrainerApp {
     }).catch(() => {
       if (request === this.evaluationRequest) this.evaluationBar.setUnavailable();
     });
+  }
+
+  prependMoveQualityFeedback(quality) {
+    const feedback = this.root.querySelector('#feedback');
+    if (!feedback || !quality) return;
+    const prefix = document.createElement('span');
+    prefix.className = 'move-quality';
+    prefix.textContent = `${formatMoveQualityLabel(quality)}. `;
+    feedback.prepend(prefix);
+  }
+
+  refreshWrongMoveQuality(attempted) {
+    if (!this.evaluator?.evaluateMove) return;
+    const request = ++this.wrongMoveEvaluationRequest;
+    Promise.resolve(this.evaluator.evaluateMove(this.chess, attempted)).then(result => {
+      if (request !== this.wrongMoveEvaluationRequest || !result) return;
+      const quality = classifyMoveQuality(result.before, result.move, this.course.side);
+      if (!quality) return;
+      this.prependMoveQualityFeedback(quality);
+      if (this.evaluationBar && result.before) this.evaluationBar.setEvaluation(result.before);
+    }).catch(() => {});
   }
 
   showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation) {
@@ -105,6 +133,7 @@ export class CoachingTrainerApp extends TrainerApp {
     const classification = this.repertoireMoves.classify(this.chess, this.line, this.ply, attempted);
 
     if (classification.kind === 'expected') {
+      this.wrongMoveEvaluationRequest += 1;
       super.onUserMove(from, to);
       return;
     }
@@ -135,5 +164,6 @@ export class CoachingTrainerApp extends TrainerApp {
     this.board.clearSelection();
     this.refreshBoardState();
     this.board.setExplanationArrow(explanationArrow);
+    this.refreshWrongMoveQuality(attempted);
   }
 }
