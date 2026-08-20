@@ -1,12 +1,14 @@
 import { TrainerApp } from './trainer.js';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
+import { RepertoireMoveIndex } from './repertoire-moves.js';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { StockfishEvaluator } from './stockfish-evaluator.js';
 
 export class CoachingTrainerApp extends TrainerApp {
   constructor(root, course, options = {}) {
     super(root, course);
+    this.repertoireMoves = new RepertoireMoveIndex(course);
     this.evaluator = Object.prototype.hasOwnProperty.call(options, 'evaluator')
       ? options.evaluator
       : (typeof StockfishEvaluator === 'undefined' ? null : new StockfishEvaluator());
@@ -50,17 +52,38 @@ export class CoachingTrainerApp extends TrainerApp {
 
   onUserMove(from, to) {
     if (this.viewPly !== null || this.lineFinished || this.chess.turn() !== this.course.side) return;
-    const expected = this.line.moves[this.ply];
     const attempted = `${from}${to}`;
+    const classification = this.repertoireMoves.classify(this.chess, this.line, this.ply, attempted);
 
-    if (expected.startsWith(attempted)) {
+    if (classification.kind === 'expected') {
       super.onUserMove(from, to);
       return;
     }
 
     this.mistakesThisLine += 1;
-    const explanation = explainWrongMove(this.chess, attempted, expected, this.line.notes[this.ply] ?? '');
-    this.showFeedback(explanation.message, 'wrong');
+    let explanationArrow = null;
+
+    if (classification.kind === 'repertoire-alternative') {
+      const attemptedNotation = this.chess.notationFor(attempted);
+      const expectedNotation = this.chess.notationFor(classification.expected);
+      const branchTitles = [...new Set(classification.alternatives.map(match => match.line?.title).filter(Boolean))];
+      const branchDescription = branchTitles.length === 1
+        ? ` in “${branchTitles[0]}”`
+        : ' in another repertoire branch';
+      this.showFeedback(
+        `${attemptedNotation} is a repertoire move${branchDescription}, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`,
+        'wrong'
+      );
+    } else {
+      const explanation = explainWrongMove(
+        this.chess,
+        attempted,
+        classification.expected,
+        this.line.notes[this.ply] ?? ''
+      );
+      explanationArrow = explanation.arrow;
+      this.showFeedback(explanation.message, 'wrong');
+    }
 
     const progress = this.progress.lines[this.line.id] ?? defaultLineProgress();
     progress.mistakes += 1;
@@ -69,6 +92,6 @@ export class CoachingTrainerApp extends TrainerApp {
 
     this.board.clearSelection();
     this.refreshBoardState();
-    this.board.setExplanationArrow(explanation.arrow);
+    this.board.setExplanationArrow(explanationArrow);
   }
 }
