@@ -20,7 +20,7 @@ def render_feedback(page, exact_titles: list[str], transposition_titles: list[st
     page.evaluate(
         """async ({exactTitles, transpositionTitles}) => {
           document.querySelector('#feedback-fixture')?.remove();
-          const { CoachingTrainerApp } = await import('./src/coaching-trainer.js?v=branch-feedback-v2');
+          const { CoachingTrainerApp } = await import('./src/coaching-trainer.js?v=move-quality-v1');
           const root = document.createElement('div');
           root.id = 'feedback-fixture';
           root.innerHTML = '<div id="feedback"></div>';
@@ -41,6 +41,35 @@ def render_feedback(page, exact_titles: list[str], transposition_titles: list[st
     )
 
 
+def render_quality_feedback(page):
+    page.evaluate(
+        """async () => {
+          document.querySelector('#quality-feedback-fixture')?.remove();
+          const { CoachingTrainerApp } = await import('./src/coaching-trainer.js?v=move-quality-v1');
+          const root = document.createElement('div');
+          root.id = 'quality-feedback-fixture';
+          root.innerHTML = '<div id="feedback"></div>';
+          document.body.append(root);
+          const course = {
+            id: 'quality-feedback-course',
+            side: 'b',
+            lines: [{id: 'current', title: 'Current branch', moves: []}]
+          };
+          const evaluator = {
+            evaluateMove() {
+              return Promise.resolve({
+                before: {type: 'cp', value: -50},
+                move: {type: 'cp', value: 75}
+              });
+            }
+          };
+          const app = new CoachingTrainerApp(root, course, {evaluator});
+          app.showFeedback('Why this is inaccurate. Play c6.', 'wrong');
+          app.refreshWrongMoveQuality('g8f6');
+        }"""
+    )
+
+
 def run():
     results = []
     handler = functools.partial(QuietHandler, directory=str(ROOT))
@@ -57,6 +86,12 @@ def run():
             page.wait_for_function(
                 "Array.from(document.styleSheets).some(sheet => sheet.href && sheet.href.includes('coach-overrides.css'))"
             )
+
+            render_quality_feedback(page)
+            quality_feedback = page.locator('#quality-feedback-fixture #feedback')
+            expect(quality_feedback).to_contain_text('Mistake (-1.25)')
+            expect(quality_feedback).to_contain_text('Why this is inaccurate. Play c6.')
+            results.append('wrong-move feedback prepends move classification and mover-relative score loss')
 
             render_feedback(
                 page,
