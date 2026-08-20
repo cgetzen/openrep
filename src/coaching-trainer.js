@@ -2,7 +2,7 @@ import { TrainerApp } from './trainer.js?v=hint-toggle-v3';
 import { MiniChess } from './mini-chess.js';
 import { miniChessToFen } from './position-fen.js';
 import { explainWrongMove } from './move-explanations.js';
-import { MoveTheoryIndex } from './move-theory.js?v=terminal-theory-v1';
+import { MoveTheoryIndex } from './move-theory.js?v=decision-cues-v1';
 import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
 import { practiceRoutePresentation } from './practice-selection.js?v=practice-route-label-v1';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
@@ -52,6 +52,26 @@ export class CoachingTrainerApp extends TrainerApp {
     return practiceRoutePresentation(this.line, this.sessionRoute);
   }
 
+  currentDecisionCue() {
+    if (this.practiceCaughtUp || this.viewPly !== null || this.lineFinished || this.isLearnResponseLesson()) {
+      return null;
+    }
+    if (this.chess.turn() !== this.course.side) return null;
+
+    const expected = this.currentExpectedMove();
+    if (!expected) return null;
+    return this.moveTheory.cueAt(miniChessToFen(this.chess), expected);
+  }
+
+  renderDecisionPrompt() {
+    const decisionCue = this.currentDecisionCue();
+    if (!decisionCue) return;
+
+    const expected = this.currentExpectedMove();
+    const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
+    this.root.querySelector('#prompt').innerHTML = `<strong>Your move as Black.</strong><span>${decisionCue}${clue}</span>`;
+  }
+
   refresh() {
     const prompt = this.root.querySelector('#prompt');
     const preservedPrompt = this.preservePromptDuringAcceptedMoveRefresh && prompt
@@ -62,6 +82,8 @@ export class CoachingTrainerApp extends TrainerApp {
 
     if (preservedPrompt !== null && !this.lineFinished && this.chess.turn() !== this.course.side) {
       prompt.innerHTML = preservedPrompt;
+    } else {
+      this.renderDecisionPrompt();
     }
     if (this.mode === 'practice' && !this.practiceCaughtUp) {
       const presentation = this.practicePresentation();
