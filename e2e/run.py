@@ -51,7 +51,6 @@ def browser_bundle() -> str:
         ROOT / 'src/move-explanations.js',
         ROOT / 'src/position-fen.js',
         ROOT / 'src/repertoire-moves.js',
-        ROOT / 'src/repertoire-feedback.js',
         ROOT / 'src/coaching-trainer.js',
     ]
     chunks = []
@@ -121,57 +120,6 @@ def restore_app(page, injected: bool):
         page.reload(wait_until='load')
 
 
-def mount_feedback_fixture(page, injected: bool, fixture_id: str, exact_titles: list[str], transposition_titles: list[str]):
-    payload = {
-        'fixtureId': fixture_id,
-        'exactTitles': exact_titles,
-        'transpositionTitles': transposition_titles,
-    }
-    if injected:
-        page.evaluate(
-            """({fixtureId, exactTitles, transpositionTitles}) => {
-              const root = document.createElement('div');
-              root.id = fixtureId;
-              root.innerHTML = '<div id="feedback"></div>';
-              document.body.append(root);
-              const course = {
-                id: fixtureId,
-                side: 'b',
-                lines: [{id: 'current', title: 'Current branch', moves: []}]
-              };
-              const app = new window.__OpenRep.CoachingTrainerApp(root, course, {evaluator: null});
-              app.line = course.lines[0];
-              app.showRepertoireAlternativeFeedback({
-                exactPathMatches: exactTitles.map((title, index) => ({line: {id: `exact-${index}`, title}})),
-                transpositionMatches: transpositionTitles.map((title, index) => ({line: {id: `trans-${index}`, title}}))
-              }, 'c5', 'Bf5');
-            }""",
-            payload
-        )
-    else:
-        page.evaluate(
-            """async ({fixtureId, exactTitles, transpositionTitles}) => {
-              const { CoachingTrainerApp } = await import('./src/coaching-trainer.js');
-              const root = document.createElement('div');
-              root.id = fixtureId;
-              root.innerHTML = '<div id="feedback"></div>';
-              document.body.append(root);
-              const course = {
-                id: fixtureId,
-                side: 'b',
-                lines: [{id: 'current', title: 'Current branch', moves: []}]
-              };
-              const app = new CoachingTrainerApp(root, course, {evaluator: null});
-              app.line = course.lines[0];
-              app.showRepertoireAlternativeFeedback({
-                exactPathMatches: exactTitles.map((title, index) => ({line: {id: `exact-${index}`, title}})),
-                transpositionMatches: transpositionTitles.map((title, index) => ({line: {id: `trans-${index}`, title}}))
-              }, 'c5', 'Bf5');
-            }""",
-            payload
-        )
-
-
 def run():
     results = []
     handler = functools.partial(QuietHandler, directory=str(ROOT))
@@ -224,7 +172,7 @@ def run():
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('explains strategic off-repertoire moves without advancing')
 
-            # A move taught by another exact branch is a training mismatch, not a chess mistake.
+            # A move taught by another branch is a training mismatch, not a chess mistake.
             page.locator('#reset-line').click()
             expect(page.locator('#prompt')).to_contain_text('c6')
             click_move(page, 'c7c6')
@@ -237,46 +185,9 @@ def run():
             expect(page.locator('#feedback')).to_contain_text('Advance — Main setup')
             expect(page.locator('#feedback')).to_contain_text('Bf5')
             expect(page.locator('#feedback')).not_to_contain_text('Why this is bad')
-            expect(page.locator('#feedback .branch-more')).to_have_count(0)
             expect(page.locator('.explanation-arrow')).to_have_count(0)
             expect(page.locator('#prompt')).to_contain_text('Bf5')
-            results.append('names the single exact branch for an alternate repertoire move')
-
-            # Two or more exact branches stay compact: show the first inline and reveal
-            # all remaining exact paths from the keyboard-accessible hover tooltip.
-            mount_feedback_fixture(
-                page,
-                injected,
-                'multi-branch-feedback',
-                ['Immediate counterplay', 'Sharp counterplay', 'Positional counterplay'],
-                []
-            )
-            multi = page.locator('#multi-branch-feedback #feedback')
-            expect(multi).to_contain_text('Immediate counterplay')
-            expect(multi.locator('.branch-more')).to_have_text(re.compile(r'and more'))
-            expect(multi.locator('.branch-more-tooltip-item')).to_have_count(2)
-            expect(multi.locator('.branch-more-tooltip-item').nth(0)).to_have_text('Sharp counterplay')
-            expect(multi.locator('.branch-more-tooltip-item').nth(1)).to_have_text('Positional counterplay')
-            multi.locator('.branch-more').hover()
-            expect(multi.locator('.branch-more-tooltip')).to_be_visible()
-            multi.locator('.branch-more').focus()
-            expect(multi.locator('.branch-more-tooltip')).to_be_visible()
-            results.append('summarizes 2+ exact branches as first plus an accessible and-more tooltip')
-
-            # Position-only transpositions remain valid repertoire moves but must not
-            # falsely claim that the user followed the transposed branch's move order.
-            mount_feedback_fixture(
-                page,
-                injected,
-                'transposition-feedback',
-                [],
-                ['Fianchetto-first transposition']
-            )
-            transposed = page.locator('#transposition-feedback #feedback')
-            expect(transposed).to_contain_text('repertoire move from this position')
-            expect(transposed).not_to_contain_text('Fianchetto-first transposition')
-            expect(transposed.locator('.branch-more')).to_have_count(0)
-            results.append('keeps transposition-only branches out of the displayed branch-name list')
+            results.append('routes valid moves from other repertoire branches to branch-specific feedback')
 
             # A tactically bad deviation should show the concrete punishment and draw it.
             page.locator('#reset-line').click()

@@ -1,8 +1,7 @@
 import { TrainerApp } from './trainer.js';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
-import { RepertoireMoveIndex } from './repertoire-moves.js?v=branch-feedback-v2';
-import { summarizeExactBranchMatches } from './repertoire-feedback.js?v=branch-feedback-v2';
+import { RepertoireMoveIndex, summarizeExactBranchMatches } from './repertoire-moves.js?v=branch-feedback-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { StockfishEvaluator } from './stockfish-evaluator.js';
 

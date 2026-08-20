@@ -23,6 +23,32 @@ function sharesMovePrefix(a, b, ply) {
   return true;
 }
 
+export function summarizeExactBranchMatches(matches) {
+  const seenIds = new Set();
+  const seenTitles = new Set();
+  const titles = [];
+
+  for (const match of matches ?? []) {
+    const line = match?.line;
+    const title = line?.title;
+    if (!title) continue;
+
+    const id = line.id ?? null;
+    if (id && seenIds.has(id)) continue;
+    if (!id && seenTitles.has(title)) continue;
+
+    if (id) seenIds.add(id);
+    seenTitles.add(title);
+    titles.push(title);
+  }
+
+  return {
+    primaryTitle: titles[0] ?? null,
+    moreTitles: titles.slice(1),
+    titles
+  };
+}
+
 export class RepertoireMoveIndex {
   constructor(course) {
     this.course = course;

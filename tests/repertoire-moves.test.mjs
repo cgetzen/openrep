@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MiniChess } from '../src/mini-chess.js';
 import { caroKann } from '../src/openings/caro-kann.js';
-import { RepertoireMoveIndex } from '../src/repertoire-moves.js';
-import { summarizeExactBranchMatches } from '../src/repertoire-feedback.js';
+import { RepertoireMoveIndex, summarizeExactBranchMatches } from '../src/repertoire-moves.js';
 
 function positionAfter(moves) {
   const chess = new MiniChess();
