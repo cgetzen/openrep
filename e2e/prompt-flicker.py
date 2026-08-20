@@ -40,21 +40,34 @@ def release_opponent_autoplay(page):
     """)
 
 
+def ensure_hint_off(page):
+    hint = page.locator('#hint-toggle')
+    if 'Hint: on' in hint.inner_text():
+        hint.click()
+    expect(hint).to_have_text('Hint: off')
+
+
 def assert_stable_prompt_after_c6(page):
-    expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-    expect(page.locator('#prompt')).to_contain_text('c6')
+    ensure_hint_off(page)
+    prompt = page.locator('#prompt')
+    expect(prompt).to_contain_text('Your move as Black')
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).not_to_contain_text('Develop outside the pawn chain')
+    expect(prompt).not_to_contain_text('Find c6')
 
     hold_opponent_autoplay(page)
     click_move(page, 'c7c6')
 
     expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
-    expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-    expect(page.locator('#prompt')).not_to_contain_text('Opponent move')
-    expect(page.locator('#prompt')).not_to_contain_text('Watch White’s choice')
+    expect(prompt).to_contain_text('Your move as Black')
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).not_to_contain_text('Opponent move')
+    expect(prompt).not_to_contain_text('Watch White’s choice')
 
     release_opponent_autoplay(page)
-    expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-    expect(page.locator('#prompt')).to_contain_text('d5')
+    expect(prompt).to_contain_text('Your move as Black')
+    expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
+    expect(prompt).not_to_contain_text('Find d5')
 
 
 def run():
@@ -97,4 +110,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('prompt flicker e2e passed')
+    print('prompt flicker and decision cue e2e passed')
