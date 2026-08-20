@@ -13,6 +13,7 @@ def run():
     handler = functools.partial(QuietHandler, directory=str(ROOT))
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread = thread
     thread.start()
 
     try:
@@ -36,17 +37,17 @@ def run():
                     {
                       id: 'move-order-a',
                       title: 'Knight move-order A',
-                      variation: '1.Nf3 d5 2.g3 Nf6 3.Bg2',
+                      variation: '1.Nf3 Nf6 2.g3 Nc6 3.Bg2',
                       summary: 'Keep the A move order.',
-                      moves: ['g1f3', 'd7d5', 'g2g3', 'g8f6', 'f1g2', 'e7e6'],
+                      moves: ['g1f3', 'g8f6', 'g2g3', 'b8c6', 'f1g2', 'e7e6'],
                       notes: {}
                     },
                     {
                       id: 'move-order-b',
                       title: 'Knight move-order B',
-                      variation: '1.Nf3 Nf6 2.g3 d5 3.b3',
+                      variation: '1.Nf3 Nc6 2.g3 Nf6 3.b3',
                       summary: 'Keep the B move order.',
-                      moves: ['g1f3', 'g8f6', 'g2g3', 'd7d5', 'b2b3', 'e7e6'],
+                      moves: ['g1f3', 'b8c6', 'g2g3', 'g8f6', 'b2b3', 'e7e6'],
                       notes: {}
                     }
                   ]
@@ -74,7 +75,7 @@ def run():
             page.get_by_role('button', name='Weak focus weakest lines').click()
 
             expect(page.locator('#line-title')).to_have_text('Knight move-order A')
-            expect(page.locator('#line-variation')).to_have_text('1.Nf3 d5 2.g3 Nf6 3.Bg2')
+            expect(page.locator('#line-variation')).to_have_text('1.Nf3 Nf6 2.g3 Nc6 3.Bg2')
             assert page.evaluate('window.__practiceBranchIdentityApp.sessionRoute.id') == 'canonical:move-order-a'
 
             browser.close()
@@ -82,7 +83,7 @@ def run():
     finally:
         server.shutdown()
         server.server_close()
-        thread.join(timeout=2)
+        server_thread.join(timeout=2)
 
 
 if __name__ == '__main__':
