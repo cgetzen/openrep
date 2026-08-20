@@ -44,6 +44,8 @@ def browser_bundle() -> str:
     """Concatenate dependency-free modules for URL-blocked test environments."""
     paths = [
         ROOT / 'src/openings/caro-kann.js',
+        ROOT / 'src/openings/caro-kann-responses.js',
+        ROOT / 'src/openings/caro-kann-theory.js',
         ROOT / 'src/mini-chess.js',
         ROOT / 'src/progress.js',
         ROOT / 'src/chess-board.js',
@@ -52,6 +54,7 @@ def browser_bundle() -> str:
         ROOT / 'src/move-explanations.js',
         ROOT / 'src/position-fen.js',
         ROOT / 'src/repertoire-moves.js',
+        ROOT / 'src/move-theory.js',
         ROOT / 'src/coaching-trainer.js',
     ]
     chunks = []
@@ -61,8 +64,9 @@ def browser_bundle() -> str:
         source = re.sub(r'\bexport\s+(?=(?:const|let|var|class|function)\b)', '', source)
         chunks.append(source)
     chunks.append(
-        "window.__OpenRep = { CoachingTrainerApp, caroKann };\n"
-        "new CoachingTrainerApp(document.querySelector('#app'), caroKann).mount();"
+        "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions };\n"
+        "window.__OpenRep = { CoachingTrainerApp, caroKann: course };\n"
+        "new CoachingTrainerApp(document.querySelector('#app'), course).mount();"
     )
     return '\n\n'.join(chunks)
 
@@ -166,13 +170,14 @@ def run():
             expect(square(page, 'c6').locator('.hint-target-indicator .hint-option-dot')).to_have_count(1)
             results.append('renders classic pieces, last-move highlights, and yellow+gray recommendation marker')
 
-            # A strategic deviation should explain why the repertoire move is preferred
-            # without advancing the training state.
+            # A strategic deviation should explain the repertoire choice without
+            # inventing a causal criticism of the attempted move.
             click_move(page, 'g8f6')
-            expect(page.locator('#feedback')).to_contain_text('Why this is inaccurate')
+            expect(page.locator('#feedback')).to_contain_text('not the move this line teaches')
             expect(page.locator('#feedback')).to_contain_text('c6')
+            expect(page.locator('#feedback')).not_to_contain_text('Why this is inaccurate')
             expect(page.locator('#prompt')).to_contain_text('c6')
-            results.append('explains strategic off-repertoire moves without advancing')
+            results.append('explains strategic off-repertoire moves without unsupported criticism')
 
             # A move taught by another branch is a training mismatch, not a chess mistake.
             page.locator('#reset-line').click()
