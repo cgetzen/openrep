@@ -20,3 +20,38 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: npm test
       - run: npm run test:e2e
+
+  deploy-pr:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 2
+    needs: test
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - name: Deploy PR #2 branch
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Record deployed URL on PR #2
+        uses: actions/github-script@v7
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 2,
+              body: `PR #2 branch deployment succeeded: ${process.env.PAGE_URL}`
+            })
