@@ -1,6 +1,6 @@
-import './style.css.js?v=hint-target-v2';
+import './style.css.js?v=eval-bar-v1';
 import { caroKann } from './openings/caro-kann.js';
-import { CoachingTrainerApp } from './coaching-trainer.js';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=eval-bar-v1';
 
 const root = document.querySelector('#app');
 if (!root) throw new Error('Missing #app root');
