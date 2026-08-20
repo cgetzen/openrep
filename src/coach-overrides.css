@@ -140,3 +140,79 @@
 .branch-more-tooltip-item + .branch-more-tooltip-item {
   margin-top: 3px;
 }
+
+/* A completed strategic decision remains part of the lesson card rather than
+   becoming a separate results screen. The same component is used in Learn and
+   Practice so completion education cannot drift between modes. */
+.completion-theory {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(87, 101, 72, .22);
+  border-radius: 12px;
+  background: rgba(246, 248, 239, .72);
+}
+.completion-theory-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.completion-theory-heading > span {
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  opacity: .6;
+}
+.completion-theory-heading > strong {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.completion-theory-list {
+  display: grid;
+  gap: 8px;
+}
+.completion-theory-choice {
+  padding: 10px 11px;
+  border: 1px solid rgba(87, 101, 72, .16);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .64);
+}
+.completion-theory-choice.played {
+  border-color: rgba(105, 126, 73, .46);
+  box-shadow: inset 3px 0 0 rgba(105, 126, 73, .62);
+}
+.completion-theory-choice-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.completion-theory-choice-title > strong {
+  font-size: 1rem;
+}
+.completion-theory-choice p {
+  margin: 5px 0 0;
+  font-size: .9rem;
+  line-height: 1.42;
+  opacity: .82;
+}
+.completion-theory-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 750;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.completion-theory-badge.primary {
+  background: rgba(214, 224, 183, .85);
+}
+.completion-theory-badge.accepted {
+  background: rgba(223, 226, 217, .85);
+}
+.completion-theory-badge.played {
+  background: rgba(201, 218, 164, .95);
+}
