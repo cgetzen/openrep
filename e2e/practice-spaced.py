@@ -4,6 +4,7 @@ import functools
 import http.server
 import json
 import os
+import re
 import threading
 
 from playwright.sync_api import Error as PlaywrightError
@@ -79,7 +80,9 @@ def run():
 
             for uci in lines[-1]['moves'][1::2]:
                 expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+                print(f'spaced regression move: {uci}', flush=True)
                 click_move(page, uci)
+                expect(page.locator('#feedback')).not_to_have_class(re.compile(r'\bwrong\b'))
 
             expect(page.locator('#prompt')).to_contain_text('Complete')
             next_button = page.locator('#next-line')
