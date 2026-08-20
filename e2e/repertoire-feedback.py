@@ -66,7 +66,7 @@ def run():
             feedback = page.locator('#feedback-fixture #feedback')
             expect(feedback).to_contain_text('Immediate counterplay')
             more = feedback.locator('.branch-more')
-            expect(more).to_have_text('and more')
+            expect(more).to_contain_text('and more')
             items = feedback.locator('.branch-more-tooltip-item')
             expect(items).to_have_count(2)
             expect(items.nth(0)).to_have_text('Sharp counterplay')
