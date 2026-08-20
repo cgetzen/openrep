@@ -1,3 +1,6 @@
+import { MiniChess } from './mini-chess.js';
+import { miniChessToFen } from './position-fen.js';
+
 function moveKey(uci) {
   return typeof uci === 'string' ? uci.slice(0, 4) : '';
 }
@@ -7,36 +10,52 @@ function sameMove(a, b) {
   return aKey.length === 4 && aKey === moveKey(b);
 }
 
-function reachesSamePosition(line, currentLine, ply) {
-  if (!Array.isArray(line?.moves) || !Array.isArray(currentLine?.moves)) return false;
-  if (line.moves.length <= ply || currentLine.moves.length <= ply) return false;
-
-  for (let index = 0; index < ply; index += 1) {
-    if (line.moves[index] !== currentLine.moves[index]) return false;
-  }
-  return true;
+function positionKey(chess) {
+  return miniChessToFen(chess).split(' ').slice(0, 4).join(' ');
 }
 
-/**
- * Classify a training move against the complete course repertoire at the
- * current position. The trainer can then decide how to present the result
- * without teaching a valid repertoire move as a chess mistake.
- */
-export function classifyRepertoireMove(course, currentLine, ply, attemptedUci) {
-  const expected = currentLine?.moves?.[ply] ?? null;
-  if (expected && sameMove(expected, attemptedUci)) {
-    return { kind: 'expected', expected, alternatives: [] };
+export class RepertoireMoveIndex {
+  constructor(course) {
+    this.course = course;
+    this.movesByPosition = new Map();
+    this.build();
   }
 
-  const alternatives = (course?.lines ?? []).filter(line =>
-    line !== currentLine &&
-    reachesSamePosition(line, currentLine, ply) &&
-    sameMove(line.moves[ply], attemptedUci)
-  );
-
-  if (alternatives.length > 0) {
-    return { kind: 'repertoire-alternative', expected, alternatives };
+  build() {
+    for (const line of this.course?.lines ?? []) {
+      const chess = new MiniChess();
+      for (let ply = 0; ply < (line.moves?.length ?? 0); ply += 1) {
+        const uci = line.moves[ply];
+        const key = positionKey(chess);
+        const byMove = this.movesByPosition.get(key) ?? new Map();
+        const move = moveKey(uci);
+        const entries = byMove.get(move) ?? [];
+        entries.push({ line, ply, uci });
+        byMove.set(move, entries);
+        this.movesByPosition.set(key, byMove);
+        chess.moveUci(uci);
+      }
+    }
   }
 
-  return { kind: 'out-of-repertoire', expected, alternatives: [] };
+  /**
+   * Classify a training move against the complete course repertoire from the
+   * actual chess position. This intentionally uses position identity rather
+   * than move-prefix identity so transpositions are handled correctly.
+   */
+  classify(chess, currentLine, ply, attemptedUci) {
+    const expected = currentLine?.moves?.[ply] ?? null;
+    if (expected && sameMove(expected, attemptedUci)) {
+      return { kind: 'expected', expected, alternatives: [] };
+    }
+
+    const matches = this.movesByPosition.get(positionKey(chess))?.get(moveKey(attemptedUci)) ?? [];
+    const alternatives = matches.filter(match => match.line?.id !== currentLine?.id);
+
+    if (alternatives.length > 0) {
+      return { kind: 'repertoire-alternative', expected, alternatives };
+    }
+
+    return { kind: 'out-of-repertoire', expected, alternatives: [] };
+  }
 }
