@@ -47,6 +47,7 @@ def browser_bundle() -> str:
         ROOT / 'src/mini-chess.js',
         ROOT / 'src/progress.js',
         ROOT / 'src/chess-board.js',
+        ROOT / 'src/practice-selection.js',
         ROOT / 'src/trainer.js',
         ROOT / 'src/move-explanations.js',
         ROOT / 'src/position-fen.js',
@@ -72,6 +73,7 @@ def load_injected(page):
     html = re.sub(r'<script\s+type="module"[^>]*></script>', '', html)
     page.set_content(html)
     page.add_style_tag(content=(ROOT / 'src/style.css').read_text())
+    page.add_style_tag(content=(ROOT / 'src/practice-modes.css').read_text())
     page.add_style_tag(content=(ROOT / 'src/coach-overrides.css').read_text())
     page.add_script_tag(content="""
       (() => {
@@ -259,21 +261,34 @@ def run():
             expect(page.locator('#course-progress')).to_contain_text('12/12')
             results.append('completes all 12 Caro-Kann branches through board interactions')
 
-            # Smoke-test each training mode and timer behavior.
-            for mode, accessible_name in [
-                ('practice', 'Practice spaced review'),
-                ('drill', 'Drill rapid reps'),
-                ('time', 'Time beat the clock'),
-            ]:
-                button = page.get_by_role('button', name=accessible_name)
-                button.click()
-                expect(button).to_have_class(re.compile(r'active'))
-            expect(page.locator('#timer')).to_contain_text(re.compile(r'\d+\.\d+s'), timeout=2000)
-            page.get_by_role('button', name='Practice spaced review').click()
-            expect(page.locator('#timer')).to_have_text('')
+            # The product has only Learn and Practice. Practice exposes a subordinate
+            # Spaced/Weak queue selector, and changing it does not create a third mode.
+            expect(page.locator('[data-mode]')).to_have_count(2)
+            expect(page.locator('[data-mode="drill"]')).to_have_count(0)
+            expect(page.locator('[data-mode="time"]')).to_have_count(0)
+            expect(page.locator('#timer')).to_have_count(0)
+
+            practice_button = page.get_by_role('button', name='Practice test your recall')
+            practice_button.click()
+            expect(practice_button).to_have_class(re.compile(r'active'))
+            expect(page.locator('#practice-options')).to_be_visible()
+            spaced_button = page.get_by_role('button', name='Spaced review on schedule')
+            weak_button = page.get_by_role('button', name='Weak focus weakest lines')
+            expect(spaced_button).to_have_class(re.compile(r'active'))
+            expect(page.locator('#line-counter')).to_contain_text('PRACTICE · SPACED')
+
+            weak_button.click()
+            expect(weak_button).to_have_class(re.compile(r'active'))
+            expect(spaced_button).not_to_have_class(re.compile(r'active'))
+            expect(page.locator('#line-counter')).to_contain_text('PRACTICE · WEAK')
+
+            learn_button = page.get_by_role('button', name='Learn discover lines')
+            learn_button.click()
+            expect(learn_button).to_have_class(re.compile(r'active'))
+            expect(page.locator('#practice-options')).to_be_hidden()
             page.get_by_role('button', name='Hint: on').click()
             expect(page.get_by_role('button', name='Hint: off')).to_be_visible()
-            results.append('Practice, Drill, Time, timer reset, and hint controls are interactive')
+            results.append('Learn and Practice are the only modes; Practice toggles Spaced and Weak queues')
 
             page.set_viewport_size({"width": 390, "height": 844})
             expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()

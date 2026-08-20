@@ -1,0 +1,78 @@
+.modes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.practice-options {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: -4px 0 18px;
+}
+
+.practice-options.hidden {
+  display: none;
+}
+
+.practice-options-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.practice-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.practice-option {
+  min-width: 145px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.practice-option small {
+  display: block;
+  margin-top: 2px;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.practice-option:hover {
+  color: #f4f3ed;
+  background: var(--panel-2);
+}
+
+.practice-option.active {
+  color: #11130f;
+  background: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .practice-options {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: -6px;
+  }
+
+  .practice-toggle {
+    width: 100%;
+  }
+
+  .practice-option {
+    min-width: 0;
+  }
+}

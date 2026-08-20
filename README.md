@@ -1,6 +1,6 @@
 # OpenRep
 
-A static, browser-only chess opening trainer inspired by the core training loop of Chessreps: curated opening lines, move-by-move learning, practice/drill modes, hints, and spaced repetition.
+A static, browser-only chess opening trainer inspired by the core training loop of Chessreps: curated opening lines, move-by-move learning, hints, targeted practice, and spaced repetition.
 
 ## Proven-out course
 
@@ -11,9 +11,9 @@ The repository ships one complete sample course: a **12-line Caro-Kann repertoir
 - Opening content is plain JavaScript data bundled in the repository.
 - Progress and spaced-repetition scheduling live only in `localStorage`.
 - A small in-repo chess rules layer validates moves and drives the board.
-- Learn, Practice, Drill, and Time modes are implemented.
+- Learn mode teaches lines sequentially; Practice mode can select either spaced-review or weak material.
 - Node tests validate every move in all 12 opening lines.
-- A headless Chromium E2E test proves all 12 branches through real board interactions, plus incorrect-move handling, grading, persistence, and all training modes.
+- A headless Chromium E2E test proves all 12 branches through real board interactions, plus incorrect-move handling, grading, persistence, and both training modes.
 - GitHub Pages workflow is included for static deployment.
 
 ## Run locally
@@ -37,7 +37,8 @@ The E2E harness uses Python Playwright and Chromium. Install it with `python3 -m
 
 - `src/openings/caro-kann.js` — course data: lines, UCI moves, and teaching notes.
 - `src/mini-chess.js` — dependency-free browser chess rules used to validate and execute moves.
-- `src/trainer.js` — training state machine: opponent auto-play, repertoire prompts, grading, mode selection.
+- `src/trainer.js` — training state machine: opponent auto-play, repertoire prompts, grading, and Learn/Practice interaction.
+- `src/practice-selection.js` — pure Practice queue policy for spaced-review and weak-line selection.
 - `src/progress.js` — localStorage persistence and an SM-2-style scheduling heuristic.
 - `src/chess-board.js` — dependency-free interactive board.
 

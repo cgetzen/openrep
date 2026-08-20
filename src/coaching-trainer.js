@@ -1,4 +1,4 @@
-import { TrainerApp } from './trainer.js';
+import { TrainerApp } from './trainer.js?v=practice-spaced-v2';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
 import { RepertoireMoveIndex, summarizeExactBranchMatches } from './repertoire-moves.js?v=branch-feedback-v2';
