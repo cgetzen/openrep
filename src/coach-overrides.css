@@ -1,0 +1,58 @@
+.chessboard { position: relative; }
+
+/* Keep the recommended destination visually identical to a legal move option:
+   yellow teaching ring outside, gray move dot inside. */
+.hint-target-indicator {
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+  border: 4px solid rgba(215,255,95,.82);
+  display: grid;
+  place-items: center;
+  z-index: 4;
+  pointer-events: none;
+}
+.hint-option-dot {
+  width: 23%;
+  height: 23%;
+  min-width: 9px;
+  min-height: 9px;
+  border-radius: 50%;
+  background: rgba(45,48,42,.55);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+}
+.square.hint-to::after,
+.square.hint-to.legal-target::after { display: none; }
+
+/* Classic/simple piece treatment: restrained contrast, thin outlines, no glossy shadow. */
+.piece {
+  --piece-fill: #f4f2ec;
+  --piece-stroke: #4d4b46;
+  width: 84%;
+  height: 84%;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+}
+.piece-b {
+  --piece-fill: #2f302d;
+  --piece-stroke: #171815;
+  filter: none;
+}
+.piece-b .piece-detail { fill: #d6d5cf; }
+.piece-w .piece-detail { fill: #4d4b46; }
+
+.explanation-arrow-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 8;
+  pointer-events: none;
+  overflow: visible;
+}
+.explanation-arrow {
+  stroke: rgba(232,86,72,.92);
+  stroke-width: 2.7%;
+  stroke-linecap: round;
+  opacity: .92;
+}
+.explanation-arrow-head { fill: rgba(232,86,72,.96); }
