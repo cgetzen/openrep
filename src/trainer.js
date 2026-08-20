@@ -1,6 +1,7 @@
 import { MiniChess } from './mini-chess.js';
 import { ChessBoard } from './chess-board.js';
 import { defaultLineProgress, loadProgress, resetProgress, saveProgress, scheduleReview } from './progress.js';
+import { normalizePracticeSelection, pickPracticeLineIndex as selectPracticeLineIndex } from './practice-selection.js';
 
 export class TrainerApp {
   constructor(root, course) {
@@ -9,6 +10,7 @@ export class TrainerApp {
     this.chess = new MiniChess();
     this.progress = loadProgress(course.id);
     this.mode = 'learn';
+    this.practiceSelection = 'spaced';
     this.line = course.lines[0];
     this.lineIndex = 0;
     this.ply = 0;
@@ -16,8 +18,6 @@ export class TrainerApp {
     this.mistakesThisLine = 0;
     this.hintEnabled = true;
     this.lineFinished = false;
-    this.timerStartedAt = 0;
-    this.timerHandle = null;
   }
 
   mount() {
@@ -41,8 +41,15 @@ export class TrainerApp {
           <div class="course-progress" id="course-progress"></div>
         </section>
         <nav class="modes" aria-label="Training modes">
-          ${['learn','practice','drill','time'].map(mode => `<button class="mode-btn" data-mode="${mode}">${mode[0].toUpperCase()+mode.slice(1)}<small>${this.modeSubtitle(mode)}</small></button>`).join('')}
+          ${['learn','practice'].map(mode => `<button class="mode-btn" data-mode="${mode}">${mode[0].toUpperCase()+mode.slice(1)}<small>${this.modeSubtitle(mode)}</small></button>`).join('')}
         </nav>
+        <section id="practice-options" class="practice-options hidden" aria-label="Practice selection">
+          <span class="practice-options-label">Practice selection</span>
+          <div class="practice-toggle" role="group" aria-label="Select practice material">
+            <button class="practice-option" type="button" data-practice-selection="spaced">Spaced<small>review on schedule</small></button>
+            <button class="practice-option" type="button" data-practice-selection="weak">Weak<small>focus weakest lines</small></button>
+          </div>
+        </section>
         <section class="trainer-grid">
           <div class="board-column">
             <div id="board" aria-label="Chess board"></div>
@@ -58,7 +65,7 @@ export class TrainerApp {
             </div>
           </div>
           <aside class="lesson-card">
-            <div class="lesson-meta"><span id="line-counter"></span><span id="timer" class="timer"></span></div>
+            <div class="lesson-meta"><span id="line-counter"></span></div>
             <h2 id="line-title"></h2>
             <p class="variation" id="line-variation"></p>
             <div class="prompt" id="prompt"></div>
@@ -92,6 +99,7 @@ export class TrainerApp {
     );
 
     this.root.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => this.setMode(button.dataset.mode)));
+    this.root.querySelectorAll('[data-practice-selection]').forEach(button => button.addEventListener('click', () => this.setPracticeSelection(button.dataset.practiceSelection)));
     this.root.querySelector('#hint-toggle').addEventListener('click', () => { this.hintEnabled = !this.hintEnabled; this.refresh(); });
     this.root.querySelector('#reset-line').addEventListener('click', () => this.startLine(this.lineIndex));
     this.root.querySelector('#prev-line').addEventListener('click', () => this.startLine((this.lineIndex - 1 + this.course.lines.length) % this.course.lines.length));
@@ -119,36 +127,31 @@ export class TrainerApp {
   }
 
   modeSubtitle(mode) {
-    return ({ learn: 'discover lines', practice: 'spaced review', drill: 'rapid reps', time: 'beat the clock' })[mode];
+    return ({ learn: 'discover lines', practice: 'test your recall' })[mode];
   }
 
   setMode(mode) {
+    if (!['learn', 'practice'].includes(mode)) return;
     this.mode = mode;
-    if (mode === 'practice') this.lineIndex = this.pickDueLineIndex();
-    else if (mode === 'drill' || mode === 'time') this.lineIndex = this.pickWeakLineIndex();
+    if (mode === 'practice') this.lineIndex = this.pickPracticeLineIndex();
     this.startLine(this.lineIndex);
   }
 
-  pickDueLineIndex() {
-    const now = Date.now();
-    return this.course.lines.map((line, index) => {
-      const progress = this.progress.lines[line.id] ?? defaultLineProgress(now);
-      return { index, dueAt: progress.dueAt, repetitions: progress.repetitions };
-    }).sort((a,b) => a.dueAt - b.dueAt || a.repetitions - b.repetitions)[0].index;
+  setPracticeSelection(selection) {
+    this.practiceSelection = normalizePracticeSelection(selection);
+    if (this.mode === 'practice') {
+      this.lineIndex = this.pickPracticeLineIndex();
+      this.startLine(this.lineIndex);
+      return;
+    }
+    this.refresh();
   }
 
-  pickWeakLineIndex() {
-    const ranked = this.course.lines.map((line, index) => {
-      const p = this.progress.lines[line.id] ?? defaultLineProgress();
-      return { index, score: p.completions * 2 + p.repetitions - p.mistakes * 3 };
-    }).sort((a,b) => a.score - b.score);
-    const weakest = ranked.slice(0, Math.min(4, ranked.length));
-    return weakest[Math.floor(Math.random() * weakest.length)].index;
+  pickPracticeLineIndex() {
+    return selectPracticeLineIndex(this.course.lines, this.progress, this.practiceSelection);
   }
 
   startLine(index) {
-    if (this.timerHandle !== null) window.clearInterval(this.timerHandle);
-    this.timerHandle = null;
     this.lineIndex = index;
     this.line = this.course.lines[index];
     this.chess.reset();
@@ -157,20 +160,9 @@ export class TrainerApp {
     this.mistakesThisLine = 0;
     this.lineFinished = false;
     this.board.clearSelection();
-    this.timerStartedAt = Date.now();
-    const timer = this.root.querySelector('#timer');
-    if (timer) timer.textContent = '';
-    if (this.mode === 'time') this.startTimer();
     this.clearFeedback();
     this.refresh();
     window.setTimeout(() => this.autoPlayIfNeeded(), 90);
-  }
-
-  startTimer() {
-    this.timerHandle = window.setInterval(() => {
-      const timer = this.root.querySelector('#timer');
-      if (timer) timer.textContent = `${((Date.now() - this.timerStartedAt) / 1000).toFixed(1)}s`;
-    }, 100);
   }
 
   autoPlayIfNeeded() {
@@ -244,8 +236,6 @@ export class TrainerApp {
 
   finishLine() {
     this.lineFinished = true;
-    if (this.timerHandle !== null) window.clearInterval(this.timerHandle);
-    this.timerHandle = null;
     if (!this.progress.discovered.includes(this.line.id)) this.progress.discovered.push(this.line.id);
     this.progress.totalSessions += 1;
     saveProgress(this.course.id, this.progress);
@@ -261,17 +251,23 @@ export class TrainerApp {
   }
 
   advanceLine() {
-    if (this.mode === 'practice') this.lineIndex = this.pickDueLineIndex();
-    else if (this.mode === 'drill' || this.mode === 'time') this.lineIndex = this.pickWeakLineIndex();
+    if (this.mode === 'practice') this.lineIndex = this.pickPracticeLineIndex();
     else this.lineIndex = (this.lineIndex + 1) % this.course.lines.length;
     this.startLine(this.lineIndex);
   }
 
   refresh() {
     this.root.querySelectorAll('[data-mode]').forEach(button => button.classList.toggle('active', button.dataset.mode === this.mode));
+    const practiceOptions = this.root.querySelector('#practice-options');
+    practiceOptions.classList.toggle('hidden', this.mode !== 'practice');
+    this.root.querySelectorAll('[data-practice-selection]').forEach(button => {
+      button.classList.toggle('active', button.dataset.practiceSelection === this.practiceSelection);
+    });
+
     const hintButton = this.root.querySelector('#hint-toggle');
     hintButton.textContent = `Hint: ${this.hintEnabled ? 'on' : 'off'}`;
-    this.root.querySelector('#line-counter').textContent = `${this.mode.toUpperCase()} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
+    const practiceLabel = this.mode === 'practice' ? ` · ${this.practiceSelection.toUpperCase()}` : '';
+    this.root.querySelector('#line-counter').textContent = `${this.mode.toUpperCase()}${practiceLabel} · Line ${this.lineIndex + 1}/${this.course.lines.length}`;
     this.root.querySelector('#line-title').textContent = this.line.title;
     this.root.querySelector('#line-variation').textContent = this.line.variation;
 
