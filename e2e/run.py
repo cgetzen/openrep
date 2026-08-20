@@ -49,6 +49,8 @@ def browser_bundle() -> str:
         ROOT / 'src/chess-board.js',
         ROOT / 'src/trainer.js',
         ROOT / 'src/move-explanations.js',
+        ROOT / 'src/position-fen.js',
+        ROOT / 'src/repertoire-moves.js',
         ROOT / 'src/coaching-trainer.js',
     ]
     chunks = []
@@ -169,6 +171,23 @@ def run():
             expect(page.locator('#feedback')).to_contain_text('c6')
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('explains strategic off-repertoire moves without advancing')
+
+            # A move taught by another branch is a training mismatch, not a chess mistake.
+            page.locator('#reset-line').click()
+            expect(page.locator('#prompt')).to_contain_text('c6')
+            click_move(page, 'c7c6')
+            expect(page.locator('#prompt')).to_contain_text('d5')
+            click_move(page, 'd7d5')
+            expect(page.locator('#prompt')).to_contain_text('Bf5')
+            click_move(page, 'c6c5')
+            expect(page.locator('#feedback')).to_contain_text('c5 is a repertoire move')
+            expect(page.locator('#feedback')).to_contain_text('Advance — Immediate counterplay')
+            expect(page.locator('#feedback')).to_contain_text('Advance — Main setup')
+            expect(page.locator('#feedback')).to_contain_text('Bf5')
+            expect(page.locator('#feedback')).not_to_contain_text('Why this is bad')
+            expect(page.locator('.explanation-arrow')).to_have_count(0)
+            expect(page.locator('#prompt')).to_contain_text('Bf5')
+            results.append('routes valid moves from other repertoire branches to branch-specific feedback')
 
             # A tactically bad deviation should show the concrete punishment and draw it.
             page.locator('#reset-line').click()

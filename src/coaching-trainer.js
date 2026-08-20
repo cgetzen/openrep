@@ -1,12 +1,14 @@
 import { TrainerApp } from './trainer.js';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
+import { RepertoireMoveIndex, summarizeExactBranchMatches } from './repertoire-moves.js?v=branch-feedback-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { StockfishEvaluator } from './stockfish-evaluator.js';
 
 export class CoachingTrainerApp extends TrainerApp {
   constructor(root, course, options = {}) {
     super(root, course);
+    this.repertoireMoves = new RepertoireMoveIndex(course);
     this.evaluator = Object.prototype.hasOwnProperty.call(options, 'evaluator')
       ? options.evaluator
       : (typeof StockfishEvaluator === 'undefined' ? null : new StockfishEvaluator());
@@ -48,19 +50,82 @@ export class CoachingTrainerApp extends TrainerApp {
     });
   }
 
+  showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation) {
+    const feedback = this.root.querySelector('#feedback');
+    feedback.className = 'feedback wrong';
+    feedback.replaceChildren();
+
+    const branchSummary = summarizeExactBranchMatches(classification.exactPathMatches);
+    if (!branchSummary.primaryTitle) {
+      feedback.textContent = `${attemptedNotation} is a repertoire move from this position, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`;
+      return;
+    }
+
+    feedback.append(document.createTextNode(
+      `${attemptedNotation} is a repertoire move in “${branchSummary.primaryTitle}”`
+    ));
+
+    if (branchSummary.moreTitles.length > 0) {
+      feedback.append(document.createTextNode(' '));
+      const more = document.createElement('span');
+      more.className = 'branch-more';
+      more.tabIndex = 0;
+      more.textContent = 'and more';
+      more.setAttribute('aria-describedby', 'branch-more-tooltip');
+
+      const tooltip = document.createElement('span');
+      tooltip.className = 'branch-more-tooltip';
+      tooltip.id = 'branch-more-tooltip';
+      tooltip.setAttribute('role', 'tooltip');
+
+      const label = document.createElement('span');
+      label.className = 'branch-more-tooltip-label';
+      label.textContent = 'Also in:';
+      tooltip.append(label);
+
+      for (const title of branchSummary.moreTitles) {
+        const item = document.createElement('span');
+        item.className = 'branch-more-tooltip-item';
+        item.textContent = title;
+        tooltip.append(item);
+      }
+
+      more.append(tooltip);
+      feedback.append(more);
+    }
+
+    feedback.append(document.createTextNode(
+      `, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`
+    ));
+  }
+
   onUserMove(from, to) {
     if (this.viewPly !== null || this.lineFinished || this.chess.turn() !== this.course.side) return;
-    const expected = this.line.moves[this.ply];
     const attempted = `${from}${to}`;
+    const classification = this.repertoireMoves.classify(this.chess, this.line, this.ply, attempted);
 
-    if (expected.startsWith(attempted)) {
+    if (classification.kind === 'expected') {
       super.onUserMove(from, to);
       return;
     }
 
     this.mistakesThisLine += 1;
-    const explanation = explainWrongMove(this.chess, attempted, expected, this.line.notes[this.ply] ?? '');
-    this.showFeedback(explanation.message, 'wrong');
+    let explanationArrow = null;
+
+    if (classification.kind === 'repertoire-alternative') {
+      const attemptedNotation = this.chess.notationFor(attempted);
+      const expectedNotation = this.chess.notationFor(classification.expected);
+      this.showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation);
+    } else {
+      const explanation = explainWrongMove(
+        this.chess,
+        attempted,
+        classification.expected,
+        this.line.notes[this.ply] ?? ''
+      );
+      explanationArrow = explanation.arrow;
+      this.showFeedback(explanation.message, 'wrong');
+    }
 
     const progress = this.progress.lines[this.line.id] ?? defaultLineProgress();
     progress.mistakes += 1;
@@ -69,6 +134,6 @@ export class CoachingTrainerApp extends TrainerApp {
 
     this.board.clearSelection();
     this.refreshBoardState();
-    this.board.setExplanationArrow(explanation.arrow);
+    this.board.setExplanationArrow(explanationArrow);
   }
 }
