@@ -14,6 +14,15 @@ function positionKey(chess) {
   return miniChessToFen(chess).split(' ').slice(0, 4).join(' ');
 }
 
+function sharesMovePrefix(a, b, ply) {
+  if (!a?.moves || !b?.moves || ply < 0) return false;
+  if (a.moves.length < ply || b.moves.length < ply) return false;
+  for (let index = 0; index < ply; index += 1) {
+    if (!sameMove(a.moves[index], b.moves[index])) return false;
+  }
+  return true;
+}
+
 export class RepertoireMoveIndex {
   constructor(course) {
     this.course = course;
@@ -40,22 +49,47 @@ export class RepertoireMoveIndex {
 
   /**
    * Classify a training move against the complete course repertoire from the
-   * actual chess position. This intentionally uses position identity rather
-   * than move-prefix identity so transpositions are handled correctly.
+   * actual chess position. Position identity decides whether a move belongs to
+   * the repertoire; move-prefix identity is tracked separately so the UI only
+   * names branches the user actually followed rather than transposition-only
+   * matches.
    */
   classify(chess, currentLine, ply, attemptedUci) {
     const expected = currentLine?.moves?.[ply] ?? null;
     if (expected && sameMove(expected, attemptedUci)) {
-      return { kind: 'expected', expected, alternatives: [] };
+      return {
+        kind: 'expected',
+        expected,
+        alternatives: [],
+        exactPathMatches: [],
+        transpositionMatches: []
+      };
     }
 
     const matches = this.movesByPosition.get(positionKey(chess))?.get(moveKey(attemptedUci)) ?? [];
     const alternatives = matches.filter(match => match.line?.id !== currentLine?.id);
+    const exactPathMatches = alternatives.filter(match =>
+      match.ply === ply && sharesMovePrefix(currentLine, match.line, ply)
+    );
+    const exactSet = new Set(exactPathMatches);
+    const transpositionMatches = alternatives.filter(match => !exactSet.has(match));
 
     if (alternatives.length > 0) {
-      return { kind: 'repertoire-alternative', expected, alternatives };
+      return {
+        kind: 'repertoire-alternative',
+        expected,
+        alternatives,
+        exactPathMatches,
+        transpositionMatches
+      };
     }
 
-    return { kind: 'out-of-repertoire', expected, alternatives: [] };
+    return {
+      kind: 'out-of-repertoire',
+      expected,
+      alternatives: [],
+      exactPathMatches: [],
+      transpositionMatches: []
+    };
   }
 }

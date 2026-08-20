@@ -1,7 +1,8 @@
 import { TrainerApp } from './trainer.js';
 import { defaultLineProgress, saveProgress } from './progress.js';
 import { explainWrongMove } from './move-explanations.js';
-import { RepertoireMoveIndex } from './repertoire-moves.js';
+import { RepertoireMoveIndex } from './repertoire-moves.js?v=branch-feedback-v2';
+import { summarizeExactBranchMatches } from './repertoire-feedback.js?v=branch-feedback-v2';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { StockfishEvaluator } from './stockfish-evaluator.js';
 
@@ -50,6 +51,55 @@ export class CoachingTrainerApp extends TrainerApp {
     });
   }
 
+  showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation) {
+    const feedback = this.root.querySelector('#feedback');
+    feedback.className = 'feedback wrong';
+    feedback.replaceChildren();
+
+    const branchSummary = summarizeExactBranchMatches(classification.exactPathMatches);
+    if (!branchSummary.primaryTitle) {
+      feedback.textContent = `${attemptedNotation} is a repertoire move from this position, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`;
+      return;
+    }
+
+    feedback.append(document.createTextNode(
+      `${attemptedNotation} is a repertoire move in “${branchSummary.primaryTitle}”`
+    ));
+
+    if (branchSummary.moreTitles.length > 0) {
+      feedback.append(document.createTextNode(' '));
+      const more = document.createElement('span');
+      more.className = 'branch-more';
+      more.tabIndex = 0;
+      more.textContent = 'and more';
+      more.setAttribute('aria-describedby', 'branch-more-tooltip');
+
+      const tooltip = document.createElement('span');
+      tooltip.className = 'branch-more-tooltip';
+      tooltip.id = 'branch-more-tooltip';
+      tooltip.setAttribute('role', 'tooltip');
+
+      const label = document.createElement('span');
+      label.className = 'branch-more-tooltip-label';
+      label.textContent = 'Also in:';
+      tooltip.append(label);
+
+      for (const title of branchSummary.moreTitles) {
+        const item = document.createElement('span');
+        item.className = 'branch-more-tooltip-item';
+        item.textContent = title;
+        tooltip.append(item);
+      }
+
+      more.append(tooltip);
+      feedback.append(more);
+    }
+
+    feedback.append(document.createTextNode(
+      `, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`
+    ));
+  }
+
   onUserMove(from, to) {
     if (this.viewPly !== null || this.lineFinished || this.chess.turn() !== this.course.side) return;
     const attempted = `${from}${to}`;
@@ -66,14 +116,7 @@ export class CoachingTrainerApp extends TrainerApp {
     if (classification.kind === 'repertoire-alternative') {
       const attemptedNotation = this.chess.notationFor(attempted);
       const expectedNotation = this.chess.notationFor(classification.expected);
-      const branchTitles = [...new Set(classification.alternatives.map(match => match.line?.title).filter(Boolean))];
-      const branchDescription = branchTitles.length === 1
-        ? ` in “${branchTitles[0]}”`
-        : ' in another repertoire branch';
-      this.showFeedback(
-        `${attemptedNotation} is a repertoire move${branchDescription}, but this rep is training “${this.line.title}.” Play ${expectedNotation} here.`,
-        'wrong'
-      );
+      this.showRepertoireAlternativeFeedback(classification, attemptedNotation, expectedNotation);
     } else {
       const explanation = explainWrongMove(
         this.chess,

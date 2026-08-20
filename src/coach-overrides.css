@@ -82,3 +82,61 @@
   fill: rgba(220, 76, 62, .72);
   opacity: .9;
 }
+
+/* Keep multi-branch feedback compact while still exposing every exact-path
+   match. The affordance works with both hover and keyboard focus. */
+.branch-more {
+  position: relative;
+  display: inline-block;
+  font-size: .86em;
+  font-weight: 650;
+  line-height: 1.15;
+  border-bottom: 1px dotted currentColor;
+  cursor: help;
+  outline: none;
+}
+.branch-more:focus-visible {
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.5);
+}
+.branch-more-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 20;
+  display: none;
+  min-width: 190px;
+  max-width: min(320px, 75vw);
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(24, 26, 22, .96);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0,0,0,.24);
+  font-size: .92rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+}
+.branch-more:hover .branch-more-tooltip,
+.branch-more:focus .branch-more-tooltip {
+  display: block;
+}
+.branch-more-tooltip-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: .78rem;
+  font-weight: 700;
+  opacity: .72;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.branch-more-tooltip-item {
+  display: block;
+}
+.branch-more-tooltip-item + .branch-more-tooltip-item {
+  margin-top: 3px;
+}
