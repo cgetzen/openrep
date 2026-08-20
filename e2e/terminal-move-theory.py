@@ -89,6 +89,64 @@ def complete_accepted_move(page, fixture_id: str):
     )
 
 
+def completion_contrast_ratios(page, fixture_id: str):
+    return page.evaluate(
+        """fixtureId => {
+          const root = document.getElementById(fixtureId);
+          const targets = {
+            panel: '#completion-theory',
+            objective: '.completion-theory-heading > strong',
+            rationale: '.completion-theory-choice p',
+            primary: '.completion-theory-badge.primary',
+            accepted: '.completion-theory-badge.accepted',
+            played: '.completion-theory-badge.played'
+          };
+
+          const rgba = value => {
+            const numbers = value.match(/[\d.]+/g)?.map(Number) ?? [];
+            return [numbers[0] ?? 0, numbers[1] ?? 0, numbers[2] ?? 0, numbers[3] ?? 1];
+          };
+          const channel = value => {
+            const normalized = value / 255;
+            return normalized <= 0.03928
+              ? normalized / 12.92
+              : Math.pow((normalized + 0.055) / 1.055, 2.4);
+          };
+          const luminance = rgb => (
+            0.2126 * channel(rgb[0]) +
+            0.7152 * channel(rgb[1]) +
+            0.0722 * channel(rgb[2])
+          );
+          const effectiveBackground = element => {
+            let current = element;
+            while (current) {
+              const background = rgba(getComputedStyle(current).backgroundColor);
+              if (background[3] > 0) return background;
+              current = current.parentElement;
+            }
+            return [17, 19, 15, 1];
+          };
+          const contrast = element => {
+            const foreground = rgba(getComputedStyle(element).color);
+            const background = effectiveBackground(element);
+            const foregroundLuminance = luminance(foreground);
+            const backgroundLuminance = luminance(background);
+            const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+            const darker = Math.min(foregroundLuminance, backgroundLuminance);
+            return (lighter + 0.05) / (darker + 0.05);
+          };
+
+          return Object.fromEntries(
+            Object.entries(targets).map(([name, selector]) => [
+              name,
+              contrast(root.querySelector(selector))
+            ])
+          );
+        }""",
+        fixture_id
+    )
+
+
 def run():
     checks = []
     handler = functools.partial(QuietHandler, directory=str(ROOT))
@@ -121,6 +179,10 @@ def run():
             expect(learn.locator('#feedback')).to_contain_text('Line complete — clean rep.')
             assert page.evaluate("window['learn-terminal-fixture'].mistakesThisLine") == 0
             checks.append('accepted terminal move completes cleanly and explains primary plus multiple accepted choices')
+
+            ratios = completion_contrast_ratios(page, 'learn-terminal-fixture')
+            assert all(value >= 4.5 for value in ratios.values()), ratios
+            checks.append('completion panel text and badges meet at least 4.5:1 contrast')
 
             mount_fixture(page, 'practice-terminal-fixture', 'practice')
             complete_accepted_move(page, 'practice-terminal-fixture')
