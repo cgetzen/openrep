@@ -1,5 +1,5 @@
 import { miniChessToFen } from './position-fen.js';
-import { parseUciScore } from './evaluation.js';
+import { parseUciScore } from './evaluation.js?v=move-quality-v1';
 
 export class StockfishEvaluator {
   constructor({ workerUrl = './vendor/stockfish/stockfish-18-lite-single.js', depth = 12, WorkerClass = globalThis.Worker } = {}) {
@@ -13,6 +13,7 @@ export class StockfishEvaluator {
     this.active = null;
     this.pending = null;
     this.cache = new Map();
+    this.moveCache = new Map();
     this.failed = false;
   }
 
@@ -26,6 +27,19 @@ export class StockfishEvaluator {
       return null;
     }
     return new Promise(resolve => this.queue({ fen, resolve }));
+  }
+
+  async evaluateMove(chess, uci) {
+    const fen = miniChessToFen(chess);
+    const cacheKey = `${fen}|${uci}`;
+    if (this.moveCache.has(cacheKey)) return this.moveCache.get(cacheKey);
+    if (this.failed || !this.WorkerClass) return null;
+    try {
+      await this.ensureReady();
+    } catch {
+      return null;
+    }
+    return new Promise(resolve => this.queue({ fen, searchMove: uci, cacheKey, resolve }));
   }
 
   ensureReady() {
@@ -65,7 +79,7 @@ export class StockfishEvaluator {
         if (score) this.active.score = score;
         continue;
       }
-      if (line.startsWith('bestmove')) this.finishActive();
+      if (line.startsWith('bestmove')) this.onBestMove();
     }
   }
 
@@ -86,17 +100,55 @@ export class StockfishEvaluator {
   }
 
   start(request) {
-    this.active = { ...request, score: null, cancelled: false };
-    this.worker?.postMessage(`position fen ${request.fen}`);
-    this.worker?.postMessage(`go depth ${this.depth}`);
+    const baseline = request.searchMove ? (this.cache.get(request.fen) ?? null) : null;
+    this.active = {
+      ...request,
+      score: null,
+      baseline,
+      phase: request.searchMove ? (baseline ? 'move' : 'baseline') : 'single',
+      cancelled: false
+    };
+    this.startActiveSearch();
+  }
+
+  startActiveSearch() {
+    if (!this.active) return;
+    this.worker?.postMessage(`position fen ${this.active.fen}`);
+    const searchMove = this.active.phase === 'move' ? this.active.searchMove : null;
+    this.worker?.postMessage(`go depth ${this.depth}${searchMove ? ` searchmoves ${searchMove}` : ''}`);
+  }
+
+  onBestMove() {
+    if (!this.active) return;
+    if (this.active.searchMove && this.active.phase === 'baseline' && !this.active.cancelled) {
+      if (!this.active.score) {
+        this.finishActive();
+        return;
+      }
+      this.active.baseline = this.active.score;
+      this.cache.set(this.active.fen, this.active.score);
+      this.active.phase = 'move';
+      this.active.score = null;
+      this.startActiveSearch();
+      return;
+    }
+    this.finishActive();
   }
 
   finishActive() {
     const finished = this.active;
     this.active = null;
     if (finished && !finished.cancelled) {
-      if (finished.score) this.cache.set(finished.fen, finished.score);
-      finished.resolve(finished.score);
+      if (finished.searchMove) {
+        const result = finished.baseline && finished.score
+          ? { before: finished.baseline, move: finished.score }
+          : null;
+        if (result) this.moveCache.set(finished.cacheKey, result);
+        finished.resolve(result);
+      } else {
+        if (finished.score) this.cache.set(finished.fen, finished.score);
+        finished.resolve(finished.score);
+      }
     }
     const next = this.pending;
     this.pending = null;
