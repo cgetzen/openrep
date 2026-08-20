@@ -33,3 +33,67 @@ export function formatCompactEvaluation(score) {
   if (Math.abs(pawns) < 0.005) return '0.00';
   return Math.abs(pawns).toFixed(2);
 }
+
+function scoreForSide(score, side) {
+  if (!score) return null;
+  const multiplier = side === 'b' ? -1 : 1;
+  return { type: score.type, value: score.value * multiplier };
+}
+
+export function formatMoveScoreDifference(deltaCentipawns) {
+  if (!Number.isFinite(deltaCentipawns)) return '';
+  const normalized = Math.abs(deltaCentipawns) < 0.5 ? 0 : deltaCentipawns;
+  const pawns = normalized / 100;
+  return `${pawns > 0 ? '+' : ''}${pawns.toFixed(2)}`;
+}
+
+export function classifyMoveQuality(beforeScore, moveScore, side) {
+  if (!beforeScore || !moveScore) return null;
+  const before = scoreForSide(beforeScore, side);
+  const after = scoreForSide(moveScore, side);
+
+  if (after.type === 'mate' && after.value < 0) {
+    return { classification: 'Blunder', scoreDifference: 'allowed mate', deltaCentipawns: null };
+  }
+
+  if (before.type === 'mate' && before.value > 0) {
+    if (after.type !== 'mate' || after.value <= 0) {
+      return { classification: 'Miss', scoreDifference: 'lost mate', deltaCentipawns: null };
+    }
+    return { classification: 'Best', scoreDifference: '0.00', deltaCentipawns: 0 };
+  }
+
+  if (before.type !== 'cp' || after.type !== 'cp') {
+    return { classification: 'Best', scoreDifference: '0.00', deltaCentipawns: 0 };
+  }
+
+  const deltaCentipawns = after.value - before.value;
+  const loss = Math.max(0, -deltaCentipawns);
+
+  if (before.value >= 300 && after.value <= 100 && after.value >= -50 && loss >= 200) {
+    return {
+      classification: 'Miss',
+      scoreDifference: formatMoveScoreDifference(deltaCentipawns),
+      deltaCentipawns
+    };
+  }
+
+  let classification;
+  if (loss <= 10) classification = 'Best';
+  else if (loss <= 25) classification = 'Excellent';
+  else if (loss <= 50) classification = 'Good';
+  else if (loss <= 100) classification = 'Inaccuracy';
+  else if (loss <= 200) classification = 'Mistake';
+  else classification = 'Blunder';
+
+  return {
+    classification,
+    scoreDifference: formatMoveScoreDifference(deltaCentipawns),
+    deltaCentipawns
+  };
+}
+
+export function formatMoveQualityLabel(quality) {
+  if (!quality) return '';
+  return `${quality.classification} (${quality.scoreDifference})`;
+}
