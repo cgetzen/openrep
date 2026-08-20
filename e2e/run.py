@@ -174,8 +174,9 @@ def run():
 
             # A move taught by another branch is a training mismatch, not a chess mistake.
             page.locator('#reset-line').click()
+            expect(page.locator('#prompt')).to_contain_text('c6')
             click_move(page, 'c7c6')
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            expect(page.locator('#prompt')).to_contain_text('d5')
             click_move(page, 'd7d5')
             expect(page.locator('#prompt')).to_contain_text('Bf5')
             click_move(page, 'c6c5')
