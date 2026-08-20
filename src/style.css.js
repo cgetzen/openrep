@@ -1,4 +1,4 @@
-const assetVersion = 'training-modes-v1';
+const assetVersion = 'response-learning-v2';
 for (const file of ['./style.css', './practice-modes.css', './coach-overrides.css', './evaluation-bar.css']) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';

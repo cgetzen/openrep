@@ -4,7 +4,7 @@ These instructions apply to all code changes in this repository.
 
 ## 1. Scope every change before implementation
 
-Before editing code, do a short two-part scope review.
+Before editing code, do a short three-part scope review.
 
 ### Product scoping
 Cover:
@@ -22,6 +22,17 @@ Cover:
 - likely tech-debt risks.
 
 Prefer architectural/domain-level fixes over one-off cases, hard-coded move exceptions, or copy-only patches when the underlying problem is structural.
+
+### Future evolution / migration scoping
+Before implementation, proactively identify likely next-stage data sources, product capabilities, or replacements for the code being changed. Explicitly assess whether the proposed design would make those known directions harder to adopt later.
+
+In particular:
+- do not wait for the user to ask whether a future refactor will become harder;
+- keep stable domain identity independent from the current data source, UI placement, curriculum ownership, or authoring convenience;
+- model provenance, ownership, discovery source, and presentation as metadata when they are not part of identity;
+- prefer seams where a future automated source can feed the same domain model used by today's curated/static source;
+- when the conversation establishes a likely future direction, treat it as standing architectural context for subsequent work;
+- if a proposed implementation creates avoidable migration cost for a likely future direction, adjust the design before coding and call out the tradeoff.
 
 ## 2. Branch and PR policy
 
@@ -41,14 +52,47 @@ Prefer architectural/domain-level fixes over one-off cases, hard-coded move exce
 - Prefer typed/classified states and explicit interfaces over inferring behavior late in rendering.
 - Preserve existing abstractions unless there is a concrete reason to replace them.
 - Avoid introducing duplicate sources of truth.
+- Define canonical domain identity explicitly when equivalent states can be reached through multiple paths.
+- Do not use labels, lesson IDs, authoring anchors, or source-specific IDs as identity when the underlying domain object has a more stable key.
+- Validate domain uniqueness/invariants at construction boundaries so bad course data fails fast instead of producing duplicate or contradictory UI later.
 
-## 4. Testing and CI policy
+## 4. Architecture invariants
+
+OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
+
+```mermaid
+flowchart LR
+    L["Course lesson paths"] --> P["Position graph / coverage index"]
+    C["Curated response content"] --> R["Response registry<br/>identity = position + opponent move"]
+    P --> R
+
+    DB["Future opening database"] -. "candidate moves / frequency" .-> D["Response discovery"]
+    SF["Future Stockfish"] -. "validation / ranking" .-> D
+    D -. "accepted candidates" .-> R
+
+    R --> O["Curriculum metadata<br/>teaching owner + explanation + provenance"]
+    P --> T["Learn / Practice trainer"]
+    O --> T
+    G["Progress<br/>line scheduling + learned response IDs"] --> T
+```
+
+Key invariants:
+- chess position identity is based on normalized position state, not move-order history;
+- a response is canonically identified by `(position, opponent move)`;
+- `responseId` is the stable progress/content handle for that canonical response;
+- a response has exactly one teaching owner, but may apply from multiple lessons/transpositions;
+- an authoring anchor is only a convenient way to reconstruct a position in static course data; it is not identity or ownership;
+- curated content and future opening-database/engine discovery should feed the same response registry rather than creating parallel training systems;
+- full repertoire branches take precedence over standalone response content for the same `(position, opponent move)`.
+
+## 5. Testing and CI policy
 
 For every behavior change:
 - add or update focused unit tests for the underlying domain behavior;
 - add/update integration or E2E coverage when the user-visible behavior changes;
 - include regression coverage for the specific reported bug when practical;
-- test architectural edge cases such as transpositions/equivalent states when relevant, not just the exact reported sequence.
+- test architectural edge cases such as transpositions/equivalent states when relevant, not just the exact reported sequence;
+- test construction-time invariants when the change introduces canonical identity, ownership, or deduplication rules.
 
 After every pushed change:
 - inspect the PR CI run rather than assuming it passed;
@@ -59,7 +103,7 @@ After every pushed change:
 
 If CI or local verification cannot be inspected, state the exact limitation.
 
-## 5. Deployment policy
+## 6. Deployment policy
 
 The user grants standing authorization to deploy non-main branches for this repository.
 
@@ -74,15 +118,16 @@ Do not say a branch is deployed merely because a deployment workflow was trigger
 
 Deployment authorization does **not** imply authorization to merge to `main`.
 
-## 6. Completion checklist
+## 7. Completion checklist
 
 Before reporting a change complete, confirm:
 1. product scope reviewed;
 2. architecture/engineering scope reviewed;
-3. branch name describes the actual feature/fix;
-4. a matching draft PR exists;
-5. implementation addresses the general case;
-6. relevant tests were added/updated;
-7. PR CI was inspected through completion and is green;
-8. the deployment job completed successfully, or an exact blocker was reported;
-9. `main` was not merged without explicit authorization.
+3. future evolution/migration impact reviewed;
+4. branch name describes the actual feature/fix;
+5. a matching draft PR exists;
+6. implementation addresses the general case;
+7. relevant tests were added/updated;
+8. PR CI was inspected through completion and is green;
+9. the deployment job completed successfully, or an exact blocker was reported;
+10. `main` was not merged without explicit authorization.

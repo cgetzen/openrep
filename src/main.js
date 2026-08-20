@@ -1,7 +1,9 @@
-import './style.css.js?v=training-modes-v1';
+import './style.css.js?v=response-learning-v2';
 import { caroKann } from './openings/caro-kann.js';
-import { CoachingTrainerApp } from './coaching-trainer.js?v=practice-spaced-v2';
+import { caroKannResponses } from './openings/caro-kann-responses.js?v=response-learning-v2';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=response-learning-v2';
 
 const root = document.querySelector('#app');
 if (!root) throw new Error('Missing #app root');
-new CoachingTrainerApp(root, caroKann).mount();
+const course = { ...caroKann, responses: caroKannResponses };
+new CoachingTrainerApp(root, course).mount();
