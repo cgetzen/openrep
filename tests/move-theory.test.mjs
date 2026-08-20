@@ -28,6 +28,14 @@ test('terminal decision keeps primary repertoire move separate from accepted mov
   );
   assert.match(decision.choices[0].theory.rationale, /outside the pawn chain/);
   assert.match(decision.choices[1].theory.rationale, /pin/);
+
+  const line = caroKann.lines.find(candidate => candidate.id === 'early-nf3');
+  const chess = new MiniChess();
+  for (const move of line.moves.slice(0, 11)) chess.moveUci(move);
+  assert.equal(
+    index.decisionForLinePosition('early-nf3', miniChessToFen(chess), 'c8f5')?.id,
+    decision.id
+  );
 });
 
 test('move theory identity follows canonical position rather than move order', () => {
