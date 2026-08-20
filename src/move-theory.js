@@ -173,4 +173,16 @@ export class MoveTheoryIndex {
   decisionForLine(lineId, ply) {
     return this.decisionByLinePly.get(`${lineId}:${ply}`) ?? null;
   }
+
+  decisionForLinePosition(lineId, position, primaryMove) {
+    const key = normalizePositionKey(position);
+    const move = moveKey(primaryMove);
+    for (const decision of this.decisionByLinePly.values()) {
+      if (decision.lineId !== lineId) continue;
+      if (decision.positionKey !== key) continue;
+      if (decision.primaryMove !== move) continue;
+      return decision;
+    }
+    return null;
+  }
 }
