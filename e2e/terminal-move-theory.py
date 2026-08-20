@@ -69,7 +69,7 @@ def mount_fixture(page, fixture_id: str, mode: str):
     )
     page.wait_for_function(
         "fixtureId => window[fixtureId]?.ply === 1 && window[fixtureId]?.chess.turn() === 'b'",
-        fixture_id
+        arg=fixture_id
     )
 
 
@@ -80,7 +80,7 @@ def complete_accepted_move(page, fixture_id: str):
     )
     page.wait_for_function(
         "fixtureId => window[fixtureId]?.lineFinished === true",
-        fixture_id
+        arg=fixture_id
     )
 
 
