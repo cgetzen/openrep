@@ -112,6 +112,12 @@ export class MoveTheoryIndex {
       if (!entry.anchor || entry.anchor.lineId !== line.id || entry.anchor.ply !== ply) {
         throw new Error(`Lesson decision ${entry.id} must use a lesson authoring anchor`);
       }
+      if (chess.turn() !== this.course.side) {
+        throw new Error(`Lesson decision ${entry.id} must belong to the repertoire side`);
+      }
+      if (!entry.objective || typeof entry.objective !== 'string') {
+        throw new Error(`Lesson decision ${entry.id} must explain its teaching objective`);
+      }
 
       const primaryMove = moveKey(line.moves[ply]);
       const acceptedMoves = [];
