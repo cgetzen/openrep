@@ -622,7 +622,7 @@ export class TrainerApp {
       prompt.innerHTML = `<strong>Response learned ✓</strong><span>${this.sessionRoute.responseLabel} is your repertoire response. ${this.sessionRoute.idea}${example}</span>`;
     } else if (responseLesson && this.chess.turn() === this.course.side) {
       const expected = this.currentExpectedMove();
-      const clue = this.hintEnabled || this.mode === 'learn' ? ` Find ${this.chess.notationFor(expected)}.` : '';
+      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
       prompt.innerHTML = `<strong>How should Black respond?</strong><span>${this.sessionRoute.idea}${clue}</span>`;
     } else if (responseLesson) {
       prompt.innerHTML = `<strong>White could also play ${this.sessionRoute.opponentLabel}.</strong><span>This move is not taught in another lesson. Learn the repertoire response here.</span>`;
@@ -630,7 +630,7 @@ export class TrainerApp {
       prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
     } else if (this.chess.turn() === this.course.side && this.ply < this.sessionRoute.moves.length) {
       const expected = this.currentExpectedMove();
-      const clue = this.mode === 'learn' || this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
+      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
       const summary = this.sessionRoute.kind === 'canonical' ? this.line.summary : this.sessionRoute.idea;
       prompt.innerHTML = `<strong>Your move as Black.</strong><span>${summary}${clue}</span>`;
     } else {
@@ -665,7 +665,7 @@ export class TrainerApp {
       interactive: live && !this.lineFinished
     });
     const expected = live && !this.lineFinished && this.chess.turn() === this.course.side ? this.currentExpectedMove() : null;
-    this.board.setExpectedMove(expected, live && (this.hintEnabled || this.mode === 'learn'));
+    this.board.setExpectedMove(expected, live && this.hintEnabled);
   }
 
   refreshHistoryControls() {
