@@ -1,6 +1,6 @@
 .board-stage {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-columns: 40px minmax(0, 1fr);
   gap: 6px;
   align-items: stretch;
 }
@@ -45,36 +45,35 @@
   position: absolute;
   left: 50%;
   z-index: 3;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -.04em;
+  letter-spacing: -.03em;
   white-space: nowrap;
   pointer-events: none;
-  transform: translateX(-50%) rotate(-90deg);
-  transform-origin: center;
+  transform: translateX(-50%);
 }
 
 .evaluation-score:empty { display: none; }
 .evaluation-bar[data-orientation="w"][data-score-side="white"] .evaluation-score {
-  bottom: 18px;
+  bottom: 10px;
   color: #242522;
 }
 .evaluation-bar[data-orientation="w"][data-score-side="black"] .evaluation-score {
-  top: 18px;
+  top: 10px;
   color: #f2f2ee;
 }
 .evaluation-bar[data-orientation="b"][data-score-side="white"] .evaluation-score {
-  top: 18px;
+  top: 10px;
   color: #242522;
 }
 .evaluation-bar[data-orientation="b"][data-score-side="black"] .evaluation-score {
-  bottom: 18px;
+  bottom: 10px;
   color: #f2f2ee;
 }
 
 @media (max-width: 560px) {
-  .board-stage { grid-template-columns: 11px minmax(0, 1fr); gap: 4px; }
-  .evaluation-score { font-size: 8px; }
+  .board-stage { grid-template-columns: 36px minmax(0, 1fr); gap: 4px; }
+  .evaluation-score { font-size: 9px; }
 }
