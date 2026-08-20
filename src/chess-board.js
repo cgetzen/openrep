@@ -1,43 +1,45 @@
 function pieceSvg(type) {
-  // Original, deliberately simple Staunton-inspired silhouettes: familiar at a
-  // glance without decorative flourishes or relying on platform chess glyphs.
+  // Conventional Staunton-style silhouettes: restrained proportions, smooth
+  // curves, and minimal ornament so the pieces read like a standard chess set.
   const shapes = {
     p: `
-      <circle cx="50" cy="25" r="10"/>
-      <path d="M42 36h16c-1 9 3 17 10 27H32c7-10 11-18 10-27z"/>
-      <path d="M29 64h42l4 9H25z"/>
-      <path d="M22 75h56v10H22z"/>`,
+      <circle cx="50" cy="24" r="11"/>
+      <path d="M41 39h18c-2 8 0 17 7 27H34c7-10 9-19 7-27z"/>
+      <path d="M30 66h40l4 8H26z"/>
+      <path d="M22 76h56v9H22z"/>`,
     n: `
-      <path d="M24 76h54v10H20z"/>
-      <path d="M30 68c4-14 12-24 23-31l-8-8 9-13c15 5 26 15 30 29l-17 9-8-9-7 6 9 17z"/>
-      <path d="M53 18l1 14 11-7" fill="none"/>
-      <circle cx="65" cy="36" r="2.2" class="piece-detail" stroke="none"/>`,
+      <path d="M22 76h56l5 9H17z"/>
+      <path d="M29 68c2-13 8-25 19-34l-5-9 13-10c13 6 22 17 25 31l-13 7-10-8-8 6c5 4 9 10 12 17z"/>
+      <path d="M54 18c2 6 2 11 0 16" fill="none"/>
+      <circle cx="65" cy="34" r="2.1" class="piece-detail" stroke="none"/>`,
     b: `
-      <path d="M25 76h50l5 10H20z"/>
-      <path d="M32 67h36l5 9H27z"/>
-      <path d="M36 61c1-12 7-22 14-29 7 7 13 17 14 29z"/>
-      <path d="M50 14c10 0 16 7 16 15 0 7-6 13-16 18-10-5-16-11-16-18 0-8 6-15 16-15z"/>
+      <path d="M23 76h54l5 9H18z"/>
+      <path d="M30 67h40l5 9H25z"/>
+      <path d="M36 62c2-12 7-22 14-29 7 7 12 17 14 29z"/>
+      <path d="M50 14c9 0 15 7 15 15 0 7-5 13-15 19-10-6-15-12-15-19 0-8 6-15 15-15z"/>
       <path d="M57 19L43 38" fill="none"/>`,
     r: `
-      <path d="M23 76h54l5 10H18z"/>
-      <path d="M29 68h42l5 8H24z"/>
-      <path d="M33 38h34l4 30H29z"/>
-      <path d="M27 18h12v9h11v-9h11v9h12v13H27z"/>`,
+      <path d="M22 76h56l5 9H17z"/>
+      <path d="M28 67h44l5 9H23z"/>
+      <path d="M32 39h36l3 28H29z"/>
+      <path d="M27 18h12v9h11v-9h11v9h12v13H27z"/>
+      <path d="M31 45h38" fill="none"/>`,
     q: `
-      <path d="M22 76h56l5 10H17z"/>
+      <path d="M21 76h58l5 9H16z"/>
       <path d="M28 67h44l5 9H23z"/>
-      <path d="M28 31l11 22 11-27 11 27 11-22-6 36H34z"/>
-      <circle cx="27" cy="26" r="4"/><circle cx="50" cy="20" r="4"/><circle cx="73" cy="26" r="4"/>`,
+      <path d="M31 38l8 25h22l8-25-12 11-7-22-7 22z"/>
+      <path d="M26 28l13 14 11-20 11 20 13-14" fill="none"/>
+      <circle cx="25" cy="25" r="4"/><circle cx="50" cy="18" r="4"/><circle cx="75" cy="25" r="4"/>`,
     k: `
-      <path d="M22 76h56l5 10H17z"/>
+      <path d="M21 76h58l5 9H16z"/>
       <path d="M28 67h44l5 9H23z"/>
-      <path d="M34 42h32l5 25H29z"/>
-      <path d="M37 42c3-8 8-13 13-13s10 5 13 13z"/>
-      <path d="M50 10v22M40 19h20" fill="none" stroke-width="5"/>`
+      <path d="M34 43h32l5 24H29z"/>
+      <path d="M36 43c3-9 8-14 14-14s11 5 14 14z"/>
+      <path d="M50 9v23M40 19h20" fill="none" stroke-width="4"/>`
   };
 
   return `<svg class="piece-svg piece-svg-classic" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-    <g fill="var(--piece-fill)" stroke="var(--piece-stroke)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <g fill="var(--piece-fill)" stroke="var(--piece-stroke)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round">
       ${shapes[type]}
     </g>
   </svg>`;
