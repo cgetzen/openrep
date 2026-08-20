@@ -7,9 +7,17 @@ from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 
-from run import QuietHandler, click_move, is_highlighted
+from run import QuietHandler, click_move, is_highlighted, wait_for_last_move
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def play_black_moves(page, moves):
+    for move, opponent_reply in moves:
+        expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+        click_move(page, move)
+        if opponent_reply:
+            wait_for_last_move(page, opponent_reply)
 
 
 def run():
@@ -27,9 +35,11 @@ def run():
 
             # Reach the first meaningful Advance branching position in the response's
             # canonical teaching owner.
-            for move in ['c7c6', 'd7d5', 'c8f5']:
-                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(page, move)
+            play_black_moves(page, [
+                ('c7c6', 'd2d4'),
+                ('d7d5', 'e4e5'),
+                ('c8f5', 'g1f3'),
+            ])
 
             options = page.locator('#opponent-options')
             expect(options).to_be_visible()
@@ -51,9 +61,11 @@ def run():
             ownership_page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load')
             ownership_page.locator('[data-line-index="1"]').click()
             expect(ownership_page.locator('#line-title')).to_have_text('Advance — h4 / Tal ideas')
-            for move in ['c7c6', 'd7d5', 'c8f5']:
-                expect(ownership_page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(ownership_page, move)
+            play_black_moves(ownership_page, [
+                ('c7c6', 'd2d4'),
+                ('d7d5', 'e4e5'),
+                ('c8f5', 'h2h4'),
+            ])
 
             tal_options = ownership_page.locator('#opponent-options')
             tal_be2 = tal_options.locator('[data-opponent-move="4.Be2"]')
@@ -65,9 +77,12 @@ def run():
 
             # Finish the canonical lesson first. The end state must surface only
             # genuinely new responses, even though covered branches were shown inline.
-            for move in ['e7e6', 'c6c5', 'b8c6', 'g8e7']:
-                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(page, move)
+            play_black_moves(page, [
+                ('e7e6', 'f1e2'),
+                ('c6c5', 'e1g1'),
+                ('b8c6', 'c2c3'),
+                ('g8e7', None),
+            ])
 
             expect(page.locator('#prompt')).to_contain_text('Complete')
             response_summary = page.locator('#response-summary')
@@ -124,9 +139,11 @@ def run():
             }""")
 
             page.get_by_role('button', name='Practice test your recall').click()
-            for move in ['c7c6', 'd7d5', 'c8f5']:
-                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(page, move)
+            play_black_moves(page, [
+                ('c7c6', 'd2d4'),
+                ('d7d5', 'e4e5'),
+                ('c8f5', 'f1e2'),
+            ])
 
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert is_highlighted(page, 'e2')
@@ -134,6 +151,7 @@ def run():
             expect(page.locator('#line-variation')).to_have_text('1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6')
 
             click_move(page, 'e7e6')
+            wait_for_last_move(page, 'g1f3')
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             click_move(page, 'c6c5')
             expect(page.locator('#prompt')).to_contain_text('Complete')
