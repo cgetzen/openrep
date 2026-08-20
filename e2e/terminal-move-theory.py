@@ -48,13 +48,18 @@ def mount_fixture(page, fixture_id: str, mode: str):
                 anchor: {lineId: 'line', ply: 1},
                 move: 'c7c5',
                 rationale: 'Also challenges White’s center with a sound flank pawn break.'
+              },
+              {
+                anchor: {lineId: 'line', ply: 1},
+                move: 'e7e5',
+                rationale: 'Also challenges White’s center directly with a second accepted setup.'
               }
             ],
             lessonDecisions: [{
               id: 'terminal-center-choice',
               anchor: {lineId: 'line', ply: 1},
               objective: 'Challenge White’s center immediately.',
-              acceptedMoves: ['c7c5']
+              acceptedMoves: ['c7c5', 'e7e5']
             }]
           };
           const app = new CoachingTrainerApp(root, course, {evaluator: null});
@@ -107,12 +112,15 @@ def run():
             expect(learn_panel).to_contain_text('d5')
             expect(learn_panel).to_contain_text('Primary')
             expect(learn_panel).to_contain_text('c5')
+            expect(learn_panel).to_contain_text('e5')
+            expect(learn_panel.locator('.completion-theory-choice.accepted')).to_have_count(2)
             expect(learn_panel).to_contain_text('Also works')
-            accepted_row = learn_panel.locator('.completion-theory-choice.accepted')
+            accepted_row = learn_panel.locator('.completion-theory-choice.accepted').filter(has_text='c5')
             expect(accepted_row).to_contain_text('You played')
+            expect(learn_panel.locator('.completion-theory-badge.played')).to_have_count(1)
             expect(learn.locator('#feedback')).to_contain_text('Line complete — clean rep.')
             assert page.evaluate("window['learn-terminal-fixture'].mistakesThisLine") == 0
-            checks.append('accepted terminal move completes cleanly and explains primary plus accepted choices')
+            checks.append('accepted terminal move completes cleanly and explains primary plus multiple accepted choices')
 
             mount_fixture(page, 'practice-terminal-fixture', 'practice')
             complete_accepted_move(page, 'practice-terminal-fixture')
