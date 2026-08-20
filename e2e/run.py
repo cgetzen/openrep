@@ -40,6 +40,12 @@ def is_highlighted(page, name: str) -> bool:
     return square(page, name).evaluate('(el) => el.classList.contains("last-move")')
 
 
+def wait_for_last_move(page, uci: str):
+    """Synchronize on the opponent autoplay completing, not on prompt copy."""
+    expect(square(page, uci[:2])).to_have_class(re.compile(r'last-move'))
+    expect(square(page, uci[2:4])).to_have_class(re.compile(r'last-move'))
+
+
 def browser_bundle() -> str:
     """Concatenate dependency-free modules for URL-blocked test environments."""
     paths = [
@@ -214,6 +220,7 @@ def run():
             drag_move(page, 'c7c6')
             expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
             expect(page.locator('.piece[data-piece-square="c7"]')).to_have_count(0)
+            wait_for_last_move(page, 'd2d4')
             expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert is_highlighted(page, 'd2') and is_highlighted(page, 'd4')
 
@@ -238,9 +245,11 @@ def run():
             # Complete line 1 once, grade it, then prove browser persistence.
             page.locator('#reset-line').click()
             first_line = get_course_lines(page, injected)[0]
-            for uci in first_line['moves'][1::2]:
+            for ply in range(1, len(first_line['moves']), 2):
                 expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(page, uci)
+                click_move(page, first_line['moves'][ply])
+                if ply + 1 < len(first_line['moves']):
+                    wait_for_last_move(page, first_line['moves'][ply + 1])
             expect(page.locator('#prompt')).to_contain_text('Complete')
             expect(page.locator('#feedback')).to_contain_text('clean rep')
             page.get_by_role('button', name='Good').click()
@@ -257,9 +266,11 @@ def run():
                 print(f'ui line {index+1}/12: {line["title"]}', flush=True)
                 page.locator(f'[data-line-index="{index}"]').click()
                 expect(page.locator('#line-title')).to_have_text(line['title'])
-                for uci in line['moves'][1::2]:
+                for ply in range(1, len(line['moves']), 2):
                     expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                    click_move(page, uci)
+                    click_move(page, line['moves'][ply])
+                    if ply + 1 < len(line['moves']):
+                        wait_for_last_move(page, line['moves'][ply + 1])
                 expect(page.locator('#prompt')).to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
                 page.get_by_role('button', name='Good').click()
