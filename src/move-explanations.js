@@ -50,7 +50,7 @@ export function explainWrongMove(chess, attemptedUci, expectedUci, expectedNote 
     if (canRecapture(afterCapture, attemptedMove.to)) continue;
 
     const pieceName = PIECE_NAME[movedPiece?.type] ?? 'piece';
-    const plan = expectedNote ? ` ${expectedSan} is preferred: ${expectedNote}` : ` The repertoire move is ${expectedSan}.`;
+    const plan = expectedNote ? ` ${expectedSan} is the repertoire choice: ${expectedNote}` : ` The repertoire move is ${expectedSan}.`;
     return {
       kind: 'hanging-piece',
       message: `Why this is bad: ${attemptedMove.san} leaves the ${pieceName} on ${attemptedMove.to} hanging. ${opponent} can play ${capture.san} and you cannot recapture.${plan}`,
@@ -60,11 +60,11 @@ export function explainWrongMove(chess, attemptedUci, expectedUci, expectedNote 
   }
 
   const plan = expectedNote
-    ? `${expectedSan} is preferred because ${expectedNote}`
+    ? `${expectedSan} is the repertoire choice here: ${expectedNote}`
     : `${expectedSan} is the repertoire move here.`;
   return {
     kind: 'strategic',
-    message: `Why this is inaccurate: ${attemptedMove.san} misses the main point of the position. ${plan}`,
+    message: `${attemptedMove.san} is not the move this line teaches. ${plan}`,
     arrow: null
   };
 }
