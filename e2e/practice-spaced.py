@@ -81,14 +81,17 @@ def run():
 
             # Practice may intentionally sample a learned alternate route for this
             # scheduled line. Follow the route the UI presents instead of hard-coding
-            # canonical branch moves; this test is about scheduling and completion.
+            # canonical branch moves; completion is workflow state, not prompt copy.
             prompt = page.locator('#prompt')
+            next_button = page.locator('#next-line')
             for _ in range(20):
-                expect(prompt).not_to_be_empty()
-                if 'Complete' in prompt.inner_text():
+                if 'Grade to continue' in next_button.inner_text():
                     break
+
+                expect(prompt).not_to_be_empty()
                 expect(prompt.locator('strong')).to_have_count(0)
                 expect(prompt).not_to_contain_text('Your move as Black')
+                expect(prompt).not_to_contain_text('Complete')
 
                 hint_from = page.locator('.square.hint-from')
                 hint_to = page.locator('.square.hint-to')
@@ -101,14 +104,16 @@ def run():
             else:
                 raise AssertionError('Practice route did not complete within 20 user moves')
 
-            expect(prompt).to_contain_text('Complete')
-            next_button = page.locator('#next-line')
+            expect(prompt).not_to_be_empty()
+            expect(prompt.locator('strong')).to_have_count(0)
+            expect(prompt).not_to_contain_text('Complete')
+            expect(page.locator('#grading')).to_be_visible()
             expect(next_button).to_be_disabled()
             expect(next_button).to_have_text('Grade to continue')
 
             page.get_by_role('button', name='Good').click()
             expect(page.locator('#line-title')).to_have_text('Spaced reviews complete')
-            expect(page.locator('#prompt')).to_contain_text('You’re caught up')
+            expect(page.locator('#prompt')).to_be_empty()
             expect(page.locator('#feedback')).to_contain_text('No spaced reviews are due right now')
             expect(page.locator('#line-counter')).to_contain_text('CAUGHT UP')
             expect(next_button).to_be_disabled()
