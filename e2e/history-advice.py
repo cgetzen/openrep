@@ -23,6 +23,17 @@ def assert_cue_only(prompt):
     expect(prompt).not_to_contain_text('Your move as Black')
 
 
+def open_line(page, index, first_move='e2e4'):
+    page.locator(f'[data-line-index="{index}"]').click()
+    wait_for_last_move(page, first_move)
+
+
+def opponent_moves(panel):
+    return panel.locator('[data-opponent-move]').evaluate_all(
+        '(elements) => elements.map(element => element.dataset.opponentMove)'
+    )
+
+
 def assert_history_shows_advice(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
@@ -63,6 +74,116 @@ def assert_history_shows_advice(page):
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
 
+def assert_quiet_d3_feedback_tracks_history(page):
+    open_line(page, 9)
+    click_move(page, 'c7c6')
+    wait_for_last_move(page, 'd2d3')
+    click_move(page, 'd7d5')
+    wait_for_last_move(page, 'b1d2')
+    click_move(page, 'e7e5')
+    wait_for_last_move(page, 'g1f3')
+    click_move(page, 'f8d6')
+    wait_for_last_move(page, 'g2g3')
+
+    live_feedback = page.locator('#feedback')
+    history_feedback = page.locator('#history-feedback')
+    expect(live_feedback).to_have_text(
+        'Bd6 develops toward the kingside and supports the center.'
+    )
+
+    page.locator('#history-back').click()
+    expect(history_feedback).to_be_visible()
+    expect(history_feedback).to_have_text(
+        'Bd6 develops toward the kingside and supports the center.'
+    )
+    expect(live_feedback).to_be_hidden()
+
+    page.locator('#history-back').click()
+    expect(history_feedback).to_have_text(
+        'e5 creates a broad center because White has not challenged it.'
+    )
+
+    page.locator('#history-back').click()
+    page.locator('#history-back').click()
+    expect(history_feedback).to_have_text(
+        'd5 claims equal central space immediately.'
+    )
+
+    for _ in range(4):
+        page.locator('#history-forward').click()
+    expect(page.locator('#history-status')).to_have_text('Current position')
+    expect(live_feedback).to_be_visible()
+    expect(live_feedback).to_have_text(
+        'Bd6 develops toward the kingside and supports the center.'
+    )
+    expect(history_feedback).to_be_hidden()
+
+
+def assert_teaching_context_moves_atomically(page):
+    open_line(page, 0)
+    ensure_hint_off(page)
+    prompt = page.locator('#prompt')
+    panel = page.locator('#opponent-options')
+    live_feedback = page.locator('#feedback')
+
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(panel).to_be_hidden()
+
+    click_move(page, 'c7c6')
+    wait_for_last_move(page, 'd2d4')
+    d4_advice = prompt.inner_text()
+    d4_options = opponent_moves(panel)
+    expect(panel).to_be_visible()
+    expect(live_feedback).to_be_visible()
+    assert d4_options
+    feedback_box = live_feedback.bounding_box()
+    options_box = panel.bounding_box()
+    assert feedback_box and options_box
+    assert feedback_box['y'] < options_box['y']
+
+    click_move(page, 'd7d5')
+    wait_for_last_move(page, 'e4e5')
+    e5_advice = prompt.inner_text()
+    e5_options = opponent_moves(panel)
+    expect(panel).to_be_visible()
+    assert e5_options
+    assert e5_advice != d4_advice
+    assert e5_options != d4_options
+
+    # Removing White's e5 crosses a decision boundary, so both surfaces return to the 2.d4 decision.
+    page.locator('#history-back').click()
+    expect(page.locator('#history-status')).to_have_text('Position 4 / 5')
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
+
+    # Removing Black's ...d5 does not cross a decision boundary; both surfaces stay on 2.d4.
+    page.locator('#history-back').click()
+    expect(page.locator('#history-status')).to_have_text('Position 3 / 5')
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
+
+    # Removing White's 2.d4 crosses the next decision boundary; both surfaces change together.
+    page.locator('#history-back').click()
+    expect(page.locator('#history-status')).to_have_text('Position 2 / 5')
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(panel).to_be_hidden()
+
+    # Forward navigation has the same atomic boundaries: Black moves never advance teaching context.
+    page.locator('#history-forward').click()
+    expect(prompt).to_have_text(d4_advice)
+    expect(panel).to_be_visible()
+    assert opponent_moves(panel) == d4_options
+
+    page.locator('#history-forward').click()
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
+
+    page.locator('#history-forward').click()
+    expect(page.locator('#history-status')).to_have_text('Current position')
+    expect(prompt).to_have_text(e5_advice)
+    assert opponent_moves(panel) == e5_options
+
+
 def run():
     root = __import__('pathlib').Path(__file__).resolve().parents[1]
     handler = functools.partial(QuietHandler, directory=str(root))
@@ -90,7 +211,10 @@ def run():
                 load_injected(page)
 
             assert_history_shows_advice(page)
+            assert_quiet_d3_feedback_tracks_history(page)
+            assert_teaching_context_moves_atomically(page)
 
+            open_line(page, 0)
             page.get_by_role('button', name='Practice').click()
             assert_history_shows_advice(page)
 
@@ -102,4 +226,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('cue-only history advice Learn/Practice regression passed')
+    print('atomic decision-context Learn/Practice history regression passed')

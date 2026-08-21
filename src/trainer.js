@@ -378,7 +378,19 @@ export class TrainerApp {
     if (next === current) return;
     this.viewPly = next === this.ply ? null : next;
     this.board.clearSelection();
-    this.refresh();
+    this.refreshHistoryView();
+  }
+
+  refreshHistoryView() {
+    // History is a projection of the current lesson state. Keep this path narrow:
+    // only position-derived surfaces are allowed to update here.
+    this.refreshHistoryAdvice();
+    this.refreshBoardState();
+    this.refreshHistoryControls();
+  }
+
+  refreshHistoryAdvice() {
+    this.renderPrompt();
   }
 
   positionAtPly(ply) {
@@ -575,6 +587,35 @@ export class TrainerApp {
     panel.append(list);
   }
 
+  renderPrompt(responseLesson = this.isLearnResponseLesson()) {
+    const prompt = this.root.querySelector('#prompt');
+    if (this.practiceCaughtUp) {
+      prompt.innerHTML = '<strong>You’re caught up.</strong><span>No spaced reviews are due right now. Switch to Weak for extra practice.</span>';
+    } else if (this.viewPly !== null) {
+      prompt.innerHTML = `<strong>Reviewing this route.</strong><span>Position ${this.viewPly} of ${this.ply}. Use → to return to the current position.</span>`;
+    } else if (responseLesson && this.lineFinished) {
+      const example = this.sessionRoute.exampleLabels?.length
+        ? ` Typical continuation: ${this.sessionRoute.exampleLabels.join(' ')}.`
+        : '';
+      prompt.innerHTML = `<strong>Response learned ✓</strong><span>${this.sessionRoute.responseLabel} is your repertoire response. ${this.sessionRoute.idea}${example}</span>`;
+    } else if (responseLesson && this.chess.turn() === this.course.side) {
+      const expected = this.currentExpectedMove();
+      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
+      prompt.innerHTML = `<strong>How should Black respond?</strong><span>${this.sessionRoute.idea}${clue}</span>`;
+    } else if (responseLesson) {
+      prompt.innerHTML = `<strong>White could also play ${this.sessionRoute.opponentLabel}.</strong><span>This move is not taught in another lesson. Learn the repertoire response here.</span>`;
+    } else if (this.lineFinished) {
+      prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
+    } else if (this.chess.turn() === this.course.side && this.ply < this.sessionRoute.moves.length) {
+      const expected = this.currentExpectedMove();
+      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
+      const summary = this.sessionRoute.kind === 'canonical' ? this.line.summary : this.sessionRoute.idea;
+      prompt.innerHTML = `<strong>Your move as Black.</strong><span>${summary}${clue}</span>`;
+    } else {
+      prompt.innerHTML = '<strong>Opponent move.</strong><span>Watch White’s choice, then respond from the repertoire.</span>';
+    }
+  }
+
   refresh() {
     this.root.querySelectorAll('[data-mode]').forEach(button => button.classList.toggle('active', button.dataset.mode === this.mode));
     const practiceOptions = this.root.querySelector('#practice-options');
@@ -610,32 +651,7 @@ export class TrainerApp {
             ? `${this.line.variation} · ${this.sessionRoute.opponentLabel} routes into ${this.sessionRoute.label}`
             : `${this.line.variation} · ${this.sessionRoute.opponentLabel} response`;
 
-    const prompt = this.root.querySelector('#prompt');
-    if (this.practiceCaughtUp) {
-      prompt.innerHTML = '<strong>You’re caught up.</strong><span>No spaced reviews are due right now. Switch to Weak for extra practice.</span>';
-    } else if (this.viewPly !== null) {
-      prompt.innerHTML = `<strong>Reviewing this route.</strong><span>Position ${this.viewPly} of ${this.ply}. Use → to return to the current position.</span>`;
-    } else if (responseLesson && this.lineFinished) {
-      const example = this.sessionRoute.exampleLabels?.length
-        ? ` Typical continuation: ${this.sessionRoute.exampleLabels.join(' ')}.`
-        : '';
-      prompt.innerHTML = `<strong>Response learned ✓</strong><span>${this.sessionRoute.responseLabel} is your repertoire response. ${this.sessionRoute.idea}${example}</span>`;
-    } else if (responseLesson && this.chess.turn() === this.course.side) {
-      const expected = this.currentExpectedMove();
-      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
-      prompt.innerHTML = `<strong>How should Black respond?</strong><span>${this.sessionRoute.idea}${clue}</span>`;
-    } else if (responseLesson) {
-      prompt.innerHTML = `<strong>White could also play ${this.sessionRoute.opponentLabel}.</strong><span>This move is not taught in another lesson. Learn the repertoire response here.</span>`;
-    } else if (this.lineFinished) {
-      prompt.innerHTML = `<strong>Complete.</strong><span>${this.line.summary}</span>`;
-    } else if (this.chess.turn() === this.course.side && this.ply < this.sessionRoute.moves.length) {
-      const expected = this.currentExpectedMove();
-      const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
-      const summary = this.sessionRoute.kind === 'canonical' ? this.line.summary : this.sessionRoute.idea;
-      prompt.innerHTML = `<strong>Your move as Black.</strong><span>${summary}${clue}</span>`;
-    } else {
-      prompt.innerHTML = '<strong>Opponent move.</strong><span>Watch White’s choice, then respond from the repertoire.</span>';
-    }
+    this.renderPrompt(responseLesson);
 
     this.root.querySelector('#grading').classList.toggle('hidden', !this.lineFinished || this.practiceCaughtUp || responseLesson);
     const nextLineButton = this.root.querySelector('#next-line');
