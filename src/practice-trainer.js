@@ -44,6 +44,13 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
 }
 
 export class OpenRepTrainerApp extends CoachingTrainerApp {
+  renderDecisionPrompt() {
+    super.renderDecisionPrompt();
+    if (this.viewPly !== null || this.practiceCaughtUp || this.lineFinished || this.isLearnResponseLesson()) return;
+    if (this.chess.turn() !== this.course.side) return;
+    this.root.querySelector('#prompt')?.querySelector('strong')?.remove();
+  }
+
   beginRoute(route, startPly = 0) {
     if (this.mode !== 'practice') {
       super.beginRoute(route, startPly);
