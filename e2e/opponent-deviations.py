@@ -12,9 +12,16 @@ from run import QuietHandler, click_move, is_highlighted, wait_for_last_move
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def expect_decision_prompt(page):
+    prompt = page.locator('#prompt')
+    expect(prompt).not_to_be_empty()
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
+
+
 def play_black_moves(page, moves):
     for move, opponent_reply in moves:
-        expect(page.locator('#prompt')).not_to_be_empty()
+        expect_decision_prompt(page)
         click_move(page, move)
         if opponent_reply:
             wait_for_last_move(page, opponent_reply)
@@ -121,16 +128,16 @@ def run():
             expect(response_summary.get_by_role('button', name='Review response')).to_be_visible()
 
             # Remount with deterministic randomness so Practice must choose the newly
-            # learned response route. Covered branches remain ineligible until their
-            # actual lessons have been discovered.
+            # learned response route. Use the production trainer class so this test
+            # retains the same prompt-presentation contract as the shipped app.
             page.evaluate("""async () => {
-              const [{caroKann}, {caroKannResponses}, {CoachingTrainerApp}] = await Promise.all([
+              const [{caroKann}, {caroKannResponses}, {OpenRepTrainerApp}] = await Promise.all([
                 import('./src/openings/caro-kann.js'),
                 import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
-                import('./src/coaching-trainer.js?v=response-learning-v2')
+                import('./src/practice-trainer.js?v=cue-only-v1')
               ]);
               document.querySelector('#app').replaceChildren();
-              const app = new CoachingTrainerApp(
+              const app = new OpenRepTrainerApp(
                 document.querySelector('#app'),
                 {...caroKann, responses: caroKannResponses},
                 {evaluator: null, random: () => 0}
@@ -145,14 +152,14 @@ def run():
                 ('c8f5', 'f1e2'),
             ])
 
-            expect(page.locator('#prompt')).not_to_be_empty()
+            expect_decision_prompt(page)
             assert is_highlighted(page, 'e2')
             expect(page.locator('#line-title')).to_have_text('Advance — Main setup — Quiet development')
             expect(page.locator('#line-variation')).to_have_text('1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6')
 
             click_move(page, 'e7e6')
             wait_for_last_move(page, 'g1f3')
-            expect(page.locator('#prompt')).not_to_be_empty()
+            expect_decision_prompt(page)
             click_move(page, 'c6c5')
             expect(page.locator('#prompt')).to_contain_text('Complete')
             expect(page.locator('#grading')).to_be_visible()
