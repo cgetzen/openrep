@@ -41,40 +41,60 @@ def run():
 
             accelerated = page.locator('[data-curriculum-family="accelerated-panov"]')
             expect(accelerated.locator('h4')).to_have_text('2.c4 — Accelerated Panov')
-            response = accelerated.locator('[data-curriculum-response="accelerated-panov-c4"]')
-            expect(response.locator('strong')).to_have_text('2.c4 → d5')
-            expect(response).not_to_contain_text('Accelerated Panov')
-            response.click()
+            plan = accelerated.locator('.curriculum-teaching p').nth(1)
+            expect(plan).to_contain_text('recover the temporary d5-pawn with Nf6 and Nxd5')
+            lesson = accelerated.locator('.curriculum-line-item')
+            expect(lesson.locator('strong')).to_have_text('2.c4 — Accelerated Panov')
+            expect(lesson.locator('small')).to_contain_text('4.cxd5 Nf6')
+            lesson.click()
 
-            # A curriculum response is a root-level lesson, not a hidden excursion
-            # from its authoring/teaching-owner line. It starts at the beginning.
             expect(page.locator('#line-title')).to_have_text('2.c4 — Accelerated Panov')
-            expect(page.locator('#line-variation')).to_have_text('Important · Top-level opponent decision')
-            expect(page.locator('#line-counter')).to_have_text('LEARN · IMPORTANT · RESPONSE')
-            expect(page.locator('.lesson-card')).not_to_contain_text('Another good move')
-            expect(page.locator('.lesson-card')).not_to_contain_text('from Advance — Immediate counterplay')
-            assert 'current' in (response.get_attribute('class') or '')
+            expect(page.locator('#line-variation')).to_contain_text('4.cxd5 Nf6')
+            assert 'current' in (lesson.get_attribute('class') or '')
 
+            # Accelerated Panov is an independent multi-decision branch. The lesson
+            # must teach the central liquidation and knight-based pawn recovery,
+            # not stop after the first response to 2.c4.
             wait_for_last_move(page, 'e2e4')
             wait_for_expected_move(page, 'c7c6')
-            expect(page.locator('#prompt')).to_contain_text('Build the position')
             click_move(page, 'c7c6')
 
             wait_for_last_move(page, 'c2c4')
             wait_for_expected_move(page, 'd7d5')
             click_move(page, 'd7d5')
 
-            # Completion of a root curriculum response continues through the
-            # curriculum sequence. It must never return to the hidden owner line.
+            wait_for_last_move(page, 'e4d5')
+            wait_for_expected_move(page, 'c6d5')
+            click_move(page, 'c6d5')
+
+            wait_for_last_move(page, 'c4d5')
+            wait_for_expected_move(page, 'g8f6')
+            expect(page.locator('#prompt')).not_to_contain_text('Qxd5')
+            click_move(page, 'g8f6')
+
+            wait_for_last_move(page, 'b1c3')
+            wait_for_expected_move(page, 'f6d5')
+            click_move(page, 'f6d5')
+
+            wait_for_last_move(page, 'g1f3')
+            wait_for_expected_move(page, 'd5c3')
+            click_move(page, 'd5c3')
+
+            wait_for_last_move(page, 'd2c3')
+            wait_for_expected_move(page, 'd8d1')
+            click_move(page, 'd8d1')
+
+            wait_for_last_move(page, 'e1d1')
+            wait_for_expected_move(page, 'b8c6')
+            click_move(page, 'b8c6')
+
+            expect(page.locator('#feedback')).to_contain_text('Line complete')
             expect(page.locator('#next-line')).to_have_text('Next lesson →')
-            expect(page.locator('#next-line')).not_to_have_text('Return to lesson')
-            expect(page.locator('.lesson-card')).not_to_contain_text('Advance — Immediate counterplay')
             page.locator('#next-line').click()
             expect(page.locator('#line-title')).to_have_text('2.d3 — Quiet system')
-            expect(page.locator('#line-title')).not_to_have_text('Advance — Immediate counterplay')
 
             browser.close()
-            print('Curriculum notation and root response lesson lifecycle regressions passed')
+            print('Curriculum notation and full Accelerated Panov lesson regressions passed')
     finally:
         server.shutdown()
         server.server_close()
