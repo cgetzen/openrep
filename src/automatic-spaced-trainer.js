@@ -1,5 +1,5 @@
 import { OpenRepTrainerApp } from './practice-trainer.js?v=recent-attempt-mastery-v1';
-import { CoachingTrainerApp } from './coaching-trainer.js?v=history-attempt-parity-v1';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v2';
 
 function historicalFeedbackRoot(root) {
   return {
