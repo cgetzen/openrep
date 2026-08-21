@@ -97,18 +97,33 @@ test('unseen lines remain immediately due in spaced practice', () => {
   assert.equal(pickSpacedLineIndex(lines, progress, 1000), 1);
 });
 
-test('weak practice samples only from the weakest four lines', () => {
+test('weak practice prioritizes recent failures by capped mistake severity', () => {
   const progress = {
     lines: {
-      a: { completions: 5, repetitions: 3, mistakes: 0 },
-      b: { completions: 1, repetitions: 0, mistakes: 4 },
-      c: { completions: 2, repetitions: 1, mistakes: 2 },
-      d: { completions: 0, repetitions: 0, mistakes: 1 },
-      e: { completions: 10, repetitions: 5, mistakes: 0 }
+      a: { recentAttempts: [0, 0, 0, 0, 0] },
+      b: { recentAttempts: [3, 2, 0, 0, 0] },
+      c: { recentAttempts: [1, 0, 0, 0, 0] },
+      d: { recentAttempts: [0] },
+      e: { recentAttempts: [] }
     }
   };
 
   assert.equal(pickWeakLineIndex(lines, progress, () => 0), 1);
-  assert.notEqual(pickWeakLineIndex(lines, progress, () => 0.999999), 4);
+  assert.notEqual(pickWeakLineIndex(lines, progress, () => 0.999999), 0);
   assert.equal(pickPracticeLineIndex(lines, progress, 'weak', { random: () => 0 }), 1);
+});
+
+test('weak practice treats clean undertrained lines as weaker than mastered lines', () => {
+  const progress = {
+    lines: {
+      a: { recentAttempts: [0, 0, 0, 0, 0] },
+      b: { recentAttempts: [0, 0, 0, 0] },
+      c: { recentAttempts: [0, 0] },
+      d: { recentAttempts: [] },
+      e: { recentAttempts: [0, 0, 0] }
+    }
+  };
+
+  assert.equal(pickWeakLineIndex(lines, progress, () => 0), 3);
+  assert.notEqual(pickWeakLineIndex(lines, progress, () => 0.999999), 0);
 });
