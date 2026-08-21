@@ -4,8 +4,8 @@ import { caroKannResponses } from './openings/caro-kann-responses.js?v=coverage-
 import { caroKannMoveTheory, caroKannLessonDecisions } from './openings/caro-kann-theory.js?v=decision-cues-v1';
 import { caroKannBranchTeaching } from './openings/caro-kann-branch-teaching.js?v=teaching-copy-v1';
 import { caroKannCurriculum } from './openings/caro-kann-curriculum.js?v=coverage-curriculum-v2';
-import { buildCurriculumCourse } from './curriculum.js?v=coverage-curriculum-v2';
-import { CurriculumTrainerApp } from './curriculum-trainer.js?v=coverage-curriculum-v3';
+import { buildCurriculumCourse } from './curriculum.js?v=coverage-curriculum-v3';
+import { CurriculumTrainerApp } from './curriculum-trainer.js?v=coverage-curriculum-v4';
 
 const root = document.querySelector('#app');
 if (!root) throw new Error('Missing #app root');
