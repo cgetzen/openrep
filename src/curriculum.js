@@ -17,6 +17,12 @@ function validateMemberReferences(member, lineIds, responseIds, ownerLabel) {
   }
 }
 
+function memberField(kind) {
+  if (kind === 'line') return 'lineIds';
+  if (kind === 'response') return 'responseIds';
+  return null;
+}
+
 export function orderedCurriculumFamilies(curriculum) {
   const tierRank = new Map((curriculum?.tiers ?? []).map((tier, index) => [tier.id, index]));
   return [...(curriculum?.families ?? [])].sort((a, b) =>
@@ -48,9 +54,48 @@ export function curriculumLineOrder(lines, curriculum) {
 }
 
 export function curriculumConceptsForMember(curriculum, kind, id) {
-  const field = kind === 'line' ? 'lineIds' : kind === 'response' ? 'responseIds' : null;
+  const field = memberField(kind);
   if (!field || !id) return [];
   return (curriculum?.concepts ?? []).filter(concept => (concept[field] ?? []).includes(id));
+}
+
+export function primaryCurriculumFamilyForMember(curriculum, kind, id) {
+  const field = memberField(kind);
+  if (!field || !id) return null;
+  return (curriculum?.families ?? []).find(family => (family[field] ?? []).includes(id)) ?? null;
+}
+
+export function curriculumTierForFamily(curriculum, family) {
+  if (!family?.tier) return null;
+  return (curriculum?.tiers ?? []).find(tier => tier.id === family.tier) ?? null;
+}
+
+export function curriculumTeachingUnitPresentation(curriculum, kind, id, fallbackTitle = '') {
+  const family = primaryCurriculumFamilyForMember(curriculum, kind, id);
+  if (!family) return null;
+
+  const tier = curriculumTierForFamily(curriculum, family);
+  const lineCount = family.lineIds?.length ?? 0;
+  const responseIds = family.responseIds ?? [];
+  const standaloneResponseFamily = kind === 'response'
+    && lineCount === 0
+    && responseIds.length === 1
+    && responseIds[0] === id;
+  const title = standaloneResponseFamily ? family.title : (fallbackTitle || family.title);
+
+  return Object.freeze({
+    teachingUnitId: `${kind}:${id}`,
+    kind,
+    memberId: id,
+    familyId: family.id,
+    familyTitle: family.title,
+    tierId: tier?.id ?? family.tier ?? null,
+    tierLabel: tier?.label ?? '',
+    role: family.role ?? '',
+    title,
+    standaloneResponseFamily,
+    meta: [tier?.label, family.role].filter(Boolean).join(' · ')
+  });
 }
 
 export function validateCurriculum(course, curriculum) {
