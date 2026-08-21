@@ -2,8 +2,8 @@ import { CoachingTrainerApp, reviewDecisionPly } from './coaching-trainer.js?v=h
 import { miniChessToFen } from './position-fen.js';
 import { BranchTeachingIndex } from './branch-teaching.js?v=branch-briefings-v1';
 import { normalizeTeachingProse } from './teaching-copy.js';
-import { defaultLineProgress } from './progress.js';
-import { isLineMastered, lineLearningStatus, recordLineAttempt } from './line-learning.js';
+import { defaultLineProgress, isLineMastered, lineLearningStatus, recordLineAttempt } from './progress.js';
+import { pickPracticeLineIndex } from './practice-selection.js?v=recent-attempt-mastery-v1';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -101,6 +101,15 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
   showFeedback(message, kind) {
     const displayed = kind === 'correct' ? normalizeMoveTeachingFeedback(message) : message;
     super.showFeedback(displayed, kind);
+  }
+
+  pickPracticeLineIndex() {
+    return pickPracticeLineIndex(
+      this.course.lines,
+      this.progress,
+      this.practiceSelection,
+      { random: this.random }
+    );
   }
 
   displayedDecisionContext() {
