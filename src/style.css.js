@@ -1,5 +1,5 @@
-const assetVersion = 'response-learning-v2';
-for (const file of ['./style.css', './practice-modes.css', './coach-overrides.css', './evaluation-bar.css']) {
+const assetVersion = 'coverage-curriculum-v1';
+for (const file of ['./style.css', './practice-modes.css', './coach-overrides.css', './evaluation-bar.css', './curriculum.css']) {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   const url = new URL(file, import.meta.url);
