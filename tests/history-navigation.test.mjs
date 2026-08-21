@@ -41,6 +41,28 @@ test('history navigation returns to live position through the same narrow projec
   assert.deepEqual(app.calls, ['clearSelection', 'refreshHistoryView']);
 });
 
+test('history projection is restricted to advice, board state, and history controls', () => {
+  const calls = [];
+  const app = {
+    refresh() {
+      throw new Error('history projection must never invoke the full trainer refresh');
+    },
+    refreshHistoryAdvice() {
+      calls.push('advice');
+    },
+    refreshBoardState() {
+      calls.push('board');
+    },
+    refreshHistoryControls() {
+      calls.push('controls');
+    }
+  };
+
+  TrainerApp.prototype.refreshHistoryView.call(app);
+
+  assert.deepEqual(calls, ['advice', 'board', 'controls']);
+});
+
 test('history navigation does nothing when already at the requested boundary', () => {
   const app = historyHarness({ ply: 4, viewPly: 0 });
 
