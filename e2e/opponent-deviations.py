@@ -82,8 +82,8 @@ def run():
             expect(tal_be2.get_by_role('button', name='Learn lesson')).to_be_visible()
             ownership_page.close()
 
-            # Finish the canonical lesson first. The end state must surface only
-            # genuinely new responses, even though covered branches were shown inline.
+            # Finish the canonical lesson first. Completion state belongs to the
+            # workflow controls; the prompt remains the final move's advice.
             play_black_moves(page, [
                 ('e7e6', 'f1e2'),
                 ('c6c5', 'e1g1'),
@@ -91,7 +91,8 @@ def run():
                 ('g8e7', None),
             ])
 
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Complete')
             response_summary = page.locator('#response-summary')
             expect(response_summary).to_be_visible()
             expect(response_summary).to_contain_text('Responses to learn')
@@ -102,14 +103,15 @@ def run():
             response_summary.get_by_role('button', name='Learn response').click()
             expect(page.locator('#line-title')).to_have_text('Another good move: 4.Be2')
             expect(page.locator('#line-variation')).to_contain_text('New response')
-            expect(page.locator('#prompt')).to_contain_text('How should Black respond?')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('How should Black respond?')
 
             # One correct repertoire response is enough to learn the response.
-            # The representative continuation is explanatory in Learn, not another
-            # sequence the learner must execute.
+            # The prompt keeps the same advice-only presentation after completion.
             click_move(page, 'e7e6')
-            expect(page.locator('#prompt')).to_contain_text('Response learned')
-            expect(page.locator('#prompt')).to_contain_text('Typical continuation')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Response learned')
+            expect(page.locator('#prompt')).not_to_contain_text('Typical continuation')
             expect(page.locator('#next-line')).to_have_text('Return to lesson')
 
             progress = page.evaluate("""() => {
@@ -120,10 +122,11 @@ def run():
             assert 'learnedDeviations' not in progress
 
             # Returning from a response learned at lesson-end restores the completed
-            # lesson instead of restarting it.
+            # lesson instead of restarting it, while preserving final-move advice.
             page.get_by_role('button', name='Return to lesson').click()
             expect(page.locator('#line-title')).to_have_text('Advance — Main setup')
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(response_summary).to_contain_text('1/1 learned')
             expect(response_summary.get_by_role('button', name='Review response')).to_be_visible()
 
@@ -134,7 +137,7 @@ def run():
               const [{caroKann}, {caroKannResponses}, {OpenRepTrainerApp}] = await Promise.all([
                 import('./src/openings/caro-kann.js'),
                 import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
-                import('./src/practice-trainer.js?v=cue-only-v1')
+                import('./src/practice-trainer.js?v=advice-only-v1')
               ]);
               document.querySelector('#app').replaceChildren();
               const app = new OpenRepTrainerApp(
@@ -161,7 +164,8 @@ def run():
             wait_for_last_move(page, 'g1f3')
             expect_decision_prompt(page)
             click_move(page, 'c6c5')
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(page.locator('#grading')).to_be_visible()
 
             browser.close()
