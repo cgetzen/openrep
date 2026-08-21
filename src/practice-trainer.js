@@ -1,4 +1,4 @@
-import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v1';
+import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v2';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
