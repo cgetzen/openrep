@@ -1,6 +1,7 @@
 import { CoachingTrainerApp, reviewDecisionPly } from './coaching-trainer.js?v=history-advice-v2';
 import { miniChessToFen } from './position-fen.js';
 import { BranchTeachingIndex } from './branch-teaching.js?v=branch-briefings-v1';
+import { normalizeTeachingProse } from './teaching-copy.js';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -47,7 +48,7 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
 
 export function formatMoveTeachingFeedback(moveSan, note = '') {
   const notation = String(moveSan ?? '').trim();
-  let explanation = String(note ?? '').trim();
+  let explanation = normalizeTeachingProse(String(note ?? '').trim());
   if (!notation) return explanation;
   if (!explanation) return `${notation}. Correct.`;
 
@@ -61,7 +62,7 @@ export function formatMoveTeachingFeedback(moveSan, note = '') {
 }
 
 export function normalizeMoveTeachingFeedback(message) {
-  const text = String(message ?? '');
+  const text = normalizeTeachingProse(String(message ?? ''));
   const separator = ' — ';
   const separatorIndex = text.indexOf(separator);
   if (separatorIndex <= 0) return text;
@@ -147,7 +148,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
       && expected
       && this.hintEnabled;
     const clue = showHint ? ` Find ${this.chess.notationFor(expected)}.` : '';
-    return `${this.sessionRoute.idea}${clue}`;
+    return `${normalizeTeachingProse(this.sessionRoute.idea)}${clue}`;
   }
 
   renderDecisionPrompt() {
@@ -173,6 +174,23 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
       && !decision.moveAlreadyPlayed
       && this.hintEnabled;
     const clue = showHint ? ` Find ${decision.chess.notationFor(decision.expected)}.` : '';
+
+    if (decision.teachingKind === 'branch-briefing') {
+      const [body, keyIdea, ...extra] = decision.cue.split('\n');
+      if (!body || !keyIdea || extra.length > 0 || !keyIdea.startsWith('Key idea: ')) {
+        throw new Error('Branch briefing presentation must contain one dedicated Key idea line');
+      }
+
+      const bodyText = document.createElement('span');
+      bodyText.className = 'branch-briefing-body';
+      bodyText.textContent = body;
+      const keyIdeaText = document.createElement('span');
+      keyIdeaText.className = 'branch-key-idea';
+      keyIdeaText.textContent = `${keyIdea}${clue}`;
+      prompt.append(bodyText, keyIdeaText);
+      return;
+    }
+
     const text = document.createElement('span');
     text.textContent = `${decision.cue}${clue}`;
     prompt.append(text);
