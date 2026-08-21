@@ -44,11 +44,42 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
   return validatedCanonicalRoute(sourceLine, canonicalRouteForLine);
 }
 
+export function formatMoveTeachingFeedback(moveSan, note = '') {
+  const notation = String(moveSan ?? '').trim();
+  let explanation = String(note ?? '').trim();
+  if (!notation) return explanation;
+  if (!explanation) return `${notation}. Correct.`;
+
+  explanation = explanation.replace(/^\d+\.(?:\.\.)?\s*/, '').trim();
+  if (explanation === notation) return notation;
+  if (explanation.startsWith(`${notation} `)) {
+    explanation = explanation.slice(notation.length).trim();
+  }
+
+  return explanation ? `${notation} ${explanation}` : notation;
+}
+
+export function normalizeMoveTeachingFeedback(message) {
+  const text = String(message ?? '');
+  const separator = ' — ';
+  const separatorIndex = text.indexOf(separator);
+  if (separatorIndex <= 0) return text;
+
+  const notation = text.slice(0, separatorIndex).trim();
+  const note = text.slice(separatorIndex + separator.length).trim();
+  const withoutMoveNumber = note.replace(/^\d+\.(?:\.\.)?\s*/, '').trim();
+  if (withoutMoveNumber !== notation && !withoutMoveNumber.startsWith(`${notation} `)) return text;
+  return formatMoveTeachingFeedback(notation, note);
+}
+
 export class OpenRepTrainerApp extends CoachingTrainerApp {
   renderShell() {
     super.renderShell();
     const liveFeedback = this.root.querySelector('#feedback');
+    const opponentOptions = this.root.querySelector('#opponent-options');
     if (!liveFeedback) return;
+
+    if (opponentOptions) opponentOptions.before(liveFeedback);
 
     const historyFeedback = document.createElement('div');
     historyFeedback.id = 'history-feedback';
@@ -56,6 +87,11 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     historyFeedback.hidden = true;
     historyFeedback.setAttribute('aria-hidden', 'true');
     liveFeedback.after(historyFeedback);
+  }
+
+  showFeedback(message, kind) {
+    const displayed = kind === 'correct' ? normalizeMoveTeachingFeedback(message) : message;
+    super.showFeedback(displayed, kind);
   }
 
   displayedDecisionContext() {
@@ -199,9 +235,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
         kind: 'correct',
         text: acceptedAlternative
           ? `${move.san} also works here.`
-          : note
-            ? `${move.san} — ${note}`
-            : `${move.san}. Correct.`
+          : formatMoveTeachingFeedback(move.san, note)
       };
     }
     return latest;
