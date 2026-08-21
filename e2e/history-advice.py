@@ -30,21 +30,30 @@ def assert_history_shows_advice(page):
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 2 / 3')
-    expect(prompt).to_contain_text('Advice for c6.')
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Advice for')
     expect(prompt).not_to_contain_text('Reviewing this route')
-    expect(prompt).not_to_contain_text('Use → to return')
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 1 / 3')
-    expect(prompt).to_contain_text('Your move as Black')
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
+
+    page.locator('#history-back').click()
+    expect(history_status).to_have_text('Position 0 / 3')
+    expect(prompt).to_be_empty()
     expect(prompt).not_to_contain_text('Reviewing this route')
-    expect(prompt).not_to_contain_text('Position 1 of 3')
+    expect(prompt).not_to_contain_text('Use → to return')
 
     page.locator('#history-forward').click()
+    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    page.locator('#history-forward').click()
+    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     page.locator('#history-forward').click()
     expect(history_status).to_have_text('Current position')
+    expect(prompt).to_contain_text('Your move as Black')
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
 
@@ -88,4 +97,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('history advice Learn/Practice regression passed')
+    print('quiet history advice Learn/Practice regression passed')
