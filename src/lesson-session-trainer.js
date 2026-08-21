@@ -158,35 +158,14 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
     this.navigateLesson(1);
   }
 
-  renderPrompt(responseLesson = this.isLearnResponseLesson()) {
-    const rootResponse = responseLesson && !this.hasParentLesson();
-    const beforeResponseDecision = rootResponse
-      && !this.lineFinished
-      && this.ply <= (this.sessionRoute?.divergencePly ?? 0);
-
-    if (beforeResponseDecision && this.chess.turn() === this.course.side) {
-      const prompt = this.root.querySelector('#prompt');
-      const expected = this.currentExpectedMove();
-      const clue = this.hintEnabled && expected ? ` Find ${this.chess.notationFor(expected)}.` : '';
-      prompt.innerHTML = `<strong>Build the position.</strong><span>Follow your repertoire to reach this lesson.${clue}</span>`;
-      return;
-    }
-
-    super.renderPrompt(responseLesson);
-  }
-
-  renderDecisionPrompt() {
+  renderRootResponseBuildPrompt() {
     const rootResponse = this.isLearnResponseLesson() && !this.hasParentLesson();
     const beforeResponseDecision = rootResponse
       && this.viewPly === null
       && !this.lineFinished
       && this.ply <= (this.sessionRoute?.divergencePly ?? 0)
       && this.chess.turn() === this.course.side;
-
-    if (!beforeResponseDecision) {
-      super.renderDecisionPrompt();
-      return;
-    }
+    if (!beforeResponseDecision) return;
 
     const prompt = this.root.querySelector('#prompt');
     const expected = this.currentExpectedMove();
@@ -209,5 +188,6 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
       ? (parent ? 'Return to lesson' : 'Next lesson →')
       : 'Complete response';
     previous.disabled = parent;
+    this.renderRootResponseBuildPrompt();
   }
 }
