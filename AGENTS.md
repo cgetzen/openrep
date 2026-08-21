@@ -66,6 +66,15 @@ Learn and Practice should share trainer behavior and UI by default. Differences 
 - Any new `mode === 'learn'` or `mode === 'practice'` behavior branch that changes the learning interaction must have a concrete product justification and parity/regression coverage where practical.
 - When fixing a trainer behavior bug, verify the shared behavior in both Learn and Practice unless the behavior is inherently specific to one mode.
 
+### History navigation projection invariant
+
+History navigation changes the viewed chess position, not the underlying lesson/session state. Treat rewind/forward as a narrow projection refresh rather than a normal application refresh.
+
+- Back/forward navigation may update only position-derived surfaces: the board position, Stockfish evaluation, history controls/status, and the position-specific advice prompt.
+- Stable lesson/result surfaces must not be re-rendered or mutated by history navigation. This includes move feedback/classification, opponent alternatives, response summaries, completion teaching, lesson title/variation, grading controls, and other session-derived copy.
+- New UI that genuinely depends on the viewed historical position must opt into the history refresh path explicitly; do not broaden history navigation by calling the full trainer refresh.
+- Regression coverage should fail when history navigation mutates lesson-card content outside the advice prompt.
+
 ## 4. Architecture invariants
 
 OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
