@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AutomaticSpacedTrainerApp } from '../src/automatic-spaced-trainer.js';
-import { CoachingTrainerApp } from '../src/coaching-trainer.js';
+import { CoachingTrainerApp } from '../src/coaching-trainer.js?v=history-advice-v2';
 import { MiniChess } from '../src/mini-chess.js';
 import { RepertoireMoveIndex } from '../src/repertoire-moves.js';
 import { caroKann } from '../src/openings/caro-kann.js';
