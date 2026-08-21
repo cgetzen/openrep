@@ -59,6 +59,7 @@ def browser_bundle() -> str:
         ROOT / 'src/openings/caro-kann.js',
         ROOT / 'src/openings/caro-kann-responses.js',
         ROOT / 'src/openings/caro-kann-theory.js',
+        ROOT / 'src/openings/caro-kann-branch-teaching.js',
         ROOT / 'src/mini-chess.js',
         ROOT / 'src/progress.js',
         ROOT / 'src/chess-board.js',
@@ -68,6 +69,7 @@ def browser_bundle() -> str:
         ROOT / 'src/position-fen.js',
         ROOT / 'src/repertoire-moves.js',
         ROOT / 'src/move-theory.js',
+        ROOT / 'src/branch-teaching.js',
         ROOT / 'src/coaching-trainer.js',
         ROOT / 'src/practice-trainer.js',
     ]
@@ -78,7 +80,7 @@ def browser_bundle() -> str:
         source = re.sub(r'\bexport\s+(?=(?:const|let|var|class|function)\b)', '', source)
         chunks.append(source)
     chunks.append(
-        "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions };\n"
+        "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions, branchTeaching: caroKannBranchTeaching };\n"
         "window.__OpenRep = { OpenRepTrainerApp, caroKann: course };\n"
         "new OpenRepTrainerApp(document.querySelector('#app'), course).mount();"
     )
