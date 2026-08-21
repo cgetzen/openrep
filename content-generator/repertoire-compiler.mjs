@@ -1,0 +1,143 @@
+const DEFAULT_THRESHOLDS = Object.freeze([80, 90, 95]);
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+function roundPercent(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function stableMoveSort(a, b) {
+  const countDelta = b.games - a.games;
+  return countDelta || a.move.localeCompare(b.move);
+}
+
+function tierForCumulative(cumulativePercent, thresholds) {
+  const [core, important, sideline] = thresholds;
+  if (cumulativePercent <= core) return 'core';
+  if (cumulativePercent <= important) return 'important';
+  if (cumulativePercent <= sideline) return 'sideline';
+  return 'on-demand';
+}
+
+export function rankObservedMoves(observedMoves, totalGames = null) {
+  assert(Array.isArray(observedMoves) && observedMoves.length > 0, 'Decision must include observed moves');
+
+  const seen = new Set();
+  const ranked = observedMoves.map(entry => {
+    assert(entry && typeof entry.move === 'string' && entry.move.length >= 4, 'Observed move must have a move');
+    assert(Number.isInteger(entry.games) && entry.games > 0, `Observed move ${entry.move} must have a positive game count`);
+    assert(!seen.has(entry.move), `Duplicate observed move: ${entry.move}`);
+    seen.add(entry.move);
+    return { ...entry };
+  }).sort(stableMoveSort);
+
+  const observedTotal = ranked.reduce((sum, entry) => sum + entry.games, 0);
+  const denominator = totalGames ?? observedTotal;
+  assert(Number.isInteger(denominator) && denominator > 0, 'Decision totalGames must be a positive integer');
+  assert(observedTotal <= denominator, 'Observed move counts cannot exceed totalGames');
+
+  let cumulativeGames = 0;
+  return ranked.map(entry => {
+    cumulativeGames += entry.games;
+    return Object.freeze({
+      ...entry,
+      percent: roundPercent((entry.games / denominator) * 100),
+      cumulativePercent: roundPercent((cumulativeGames / denominator) * 100)
+    });
+  });
+}
+
+export function coverageForThresholds(rankedMoves, thresholds = DEFAULT_THRESHOLDS) {
+  assert(Array.isArray(thresholds) && thresholds.length === 3, 'Coverage thresholds must contain 80/90/95-style bands');
+  assert(thresholds.every(Number.isFinite), 'Coverage thresholds must be numeric');
+  assert(thresholds[0] < thresholds[1] && thresholds[1] < thresholds[2], 'Coverage thresholds must be strictly increasing');
+
+  return Object.freeze(Object.fromEntries(thresholds.map(threshold => {
+    const selected = [];
+    for (const entry of rankedMoves) {
+      selected.push(entry.move);
+      if (entry.cumulativePercent >= threshold) break;
+    }
+    return [String(threshold), Object.freeze(selected)];
+  })));
+}
+
+function compileDecision(decision, thresholds) {
+  assert(decision?.id, 'Decision must have a stable id');
+  assert(decision?.anchor?.lineId && Number.isInteger(decision?.anchor?.ply), `Decision ${decision?.id ?? 'unknown'} needs an authoring anchor`);
+
+  const rankedMoves = rankObservedMoves(decision.observedMoves, decision.totalGames ?? null);
+  const coverage = coverageForThresholds(rankedMoves, thresholds);
+  const responseByOpponentMove = new Map((decision.responses ?? []).map(response => [response.opponentMove, response]));
+  const requiredMoves = new Set(Object.values(coverage).flat());
+
+  for (const move of requiredMoves) {
+    assert(responseByOpponentMove.has(move), `Decision ${decision.id} is missing a repertoire response for coverage move ${move}`);
+  }
+
+  const moves = rankedMoves.map(entry => {
+    const response = responseByOpponentMove.get(entry.move) ?? null;
+    return Object.freeze({
+      ...entry,
+      tier: tierForCumulative(entry.cumulativePercent, thresholds),
+      response: response ? Object.freeze({ ...response }) : null
+    });
+  });
+
+  return Object.freeze({
+    id: decision.id,
+    anchor: Object.freeze({ ...decision.anchor }),
+    totalGames: decision.totalGames ?? rankedMoves.reduce((sum, entry) => sum + entry.games, 0),
+    source: decision.source ?? null,
+    moves: Object.freeze(moves),
+    coverage
+  });
+}
+
+export function compileRepertoireSnapshot(snapshot) {
+  assert(snapshot?.schemaVersion === 1, 'Unsupported repertoire snapshot schema');
+  assert(snapshot?.openingId, 'Snapshot requires openingId');
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(snapshot?.snapshotDate ?? ''), 'Snapshot requires a YYYY-MM-DD snapshotDate');
+
+  const thresholds = Object.freeze([...(snapshot.coverageThresholds ?? DEFAULT_THRESHOLDS)]);
+  const decisions = (snapshot.decisions ?? []).map(decision => compileDecision(decision, thresholds));
+  assert(decisions.length > 0, 'Snapshot must include at least one opponent decision');
+
+  const decisionIds = new Set();
+  for (const decision of decisions) {
+    assert(!decisionIds.has(decision.id), `Duplicate decision id: ${decision.id}`);
+    decisionIds.add(decision.id);
+  }
+
+  const terminalAlternatives = Object.freeze(Object.fromEntries(
+    (snapshot.terminalAlternatives ?? []).map(entry => {
+      assert(entry?.decisionId, 'Terminal alternative requires decisionId');
+      assert(Array.isArray(entry.acceptedMoves) && entry.acceptedMoves.length > 0, `Terminal alternative ${entry.decisionId} needs acceptedMoves`);
+      return [entry.decisionId, Object.freeze({
+        acceptedMoves: Object.freeze([...entry.acceptedMoves]),
+        rationaleByMove: Object.freeze({ ...(entry.rationaleByMove ?? {}) }),
+        evidence: Object.freeze({ ...(entry.evidence ?? {}) })
+      })];
+    })
+  ));
+
+  return Object.freeze({
+    schemaVersion: 1,
+    openingId: snapshot.openingId,
+    snapshotDate: snapshot.snapshotDate,
+    policyVersion: snapshot.policyVersion ?? '1',
+    coverageThresholds: thresholds,
+    provenance: Object.freeze({ ...(snapshot.provenance ?? {}) }),
+    decisions: Object.freeze(decisions),
+    terminalAlternatives
+  });
+}
+
+export function serializeGeneratedModule(exportName, compiled) {
+  assert(/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(exportName), 'Generated export name must be a JavaScript identifier');
+  return `// Generated by content-generator. Do not edit by hand.\n` +
+    `// Snapshot: ${compiled.snapshotDate}; policy: ${compiled.policyVersion}.\n\n` +
+    `export const ${exportName} = Object.freeze(${JSON.stringify(compiled, null, 2)});\n`;
+}
