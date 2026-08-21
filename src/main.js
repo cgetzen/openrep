@@ -5,7 +5,7 @@ import { caroKannMoveTheory, caroKannLessonDecisions } from './openings/caro-kan
 import { caroKannBranchTeaching } from './openings/caro-kann-branch-teaching.js?v=teaching-copy-v1';
 import { caroKannCurriculum } from './openings/caro-kann-curriculum.js?v=coverage-curriculum-v2';
 import { buildCurriculumCourse } from './curriculum.js?v=coverage-curriculum-v2';
-import { CurriculumTrainerApp } from './curriculum-trainer.js?v=coverage-curriculum-v2';
+import { CurriculumTrainerApp } from './curriculum-trainer.js?v=coverage-curriculum-v3';
 
 const root = document.querySelector('#app');
 if (!root) throw new Error('Missing #app root');
