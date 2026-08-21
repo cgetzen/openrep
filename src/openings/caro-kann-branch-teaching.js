@@ -2,7 +2,7 @@ export const caroKannBranchTeaching = [
   {
     lineId: 'advance-main',
     position: 'White gains space with the Advance center, but the pawn on d4 becomes a fixed target.',
-    plan: 'Develop the light-squared bishop outside the pawn chain, then challenge White’s center with ...d5 and the thematic ...c5 break.',
+    plan: 'Develop the light-squared bishop outside the pawn chain, then challenge White’s center with d5 and the thematic c5 break.',
     opponentPlan: 'White wants to support the center, finish development, and use the extra space for a kingside initiative.',
     memoryHook: 'Get the bishop out, then attack the base.',
     source: 'curated'
@@ -10,7 +10,7 @@ export const caroKannBranchTeaching = [
   {
     lineId: 'advance-tal',
     position: 'White combines the Advance center with an early h-pawn push designed to harass your light-squared bishop.',
-    plan: 'Keep the bishop from being trapped, trade it when White gains time by chasing it, then counter against d4 with ...c5.',
+    plan: 'Keep the bishop from being trapped, trade it when White gains time by chasing it, then counter against d4 with c5.',
     opponentPlan: 'White is spending tempi to gain kingside space and force the bishop into an awkward retreat.',
     memoryHook: 'Do not panic about h4; solve the bishop, then hit d4.',
     source: 'curated'
@@ -18,7 +18,7 @@ export const caroKannBranchTeaching = [
   {
     lineId: 'advance-bayonet',
     position: 'White supports the Advance center with Nc3 and throws the g-pawn forward to gain space and chase the bishop.',
-    plan: 'Retreat efficiently, let White spend tempi on wing pawns, and open central counterplay with ...c5 before the kingside rolls forward.',
+    plan: 'Retreat efficiently, let White spend tempi on wing pawns, and open central counterplay with c5 before the kingside rolls forward.',
     opponentPlan: 'White wants g4 and h4 to cramp your pieces and turn the space advantage into an attack.',
     memoryHook: 'When the wing pawns advance, counter in the center.',
     source: 'curated'
@@ -74,7 +74,7 @@ export const caroKannBranchTeaching = [
   {
     lineId: 'quiet-d3',
     position: 'White declines to occupy d4, so Black is not under the usual central pressure and can claim more space.',
-    plan: 'Build a broad center with ...d5 and ...e5, then develop naturally behind it without making concessions.',
+    plan: 'Build a broad center with d5 and e5, then develop naturally behind it without making concessions.',
     opponentPlan: 'White wants a low-contact setup and may challenge the center later after completing development.',
     memoryHook: 'If White gives you the center, take it.',
     source: 'curated'
@@ -90,9 +90,9 @@ export const caroKannBranchTeaching = [
   {
     lineId: 'advance-early-c5',
     position: 'White establishes the Advance pawn chain, but Black attacks its base immediately instead of developing the light bishop first.',
-    plan: 'Use ...c5 to force White to define d4, add pressure with ...Nc6, and develop around the resulting central tension.',
+    plan: 'Use c5 to force White to define d4, add pressure with Nc6, and develop around the resulting central tension.',
     opponentPlan: 'White wants to preserve the space advantage and finish development before d4 becomes a lasting target.',
-    memoryHook: 'If you play ...c5 early, make d4 feel the pressure immediately.',
+    memoryHook: 'If you play c5 early, make d4 feel the pressure immediately.',
     source: 'curated'
   }
 ];
