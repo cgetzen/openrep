@@ -74,7 +74,7 @@ A stable response is one teaching unit regardless of how the learner navigates t
 - A primary family with no full lines and exactly one response is a standalone response family. Its family title is the lesson title; do not render a second conceptual child title that makes the same material look like a different lesson. A child action may show the concrete move pair, such as `2.c4 → d5`.
 - A response inside a mixed family may retain its response-specific child title, but family/tier metadata still comes from the same canonical resolver.
 - Do not expose route-owner copy such as `Another good move` or `from <teaching owner line>` as the canonical lesson header when curriculum metadata already owns that teaching unit.
-- Regression coverage should verify presentation parity across at least two entry paths for a curriculum-mapped response when practical.
+- Regression coverage should verify presentation parity across at least two entry paths for a curriculum-mapped response when practical, and must reject route-owner copy leakage in the canonical header.
 
 ### Learn / Practice parity invariant
 
