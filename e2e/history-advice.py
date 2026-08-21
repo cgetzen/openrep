@@ -11,6 +11,15 @@ from playwright.sync_api import expect, sync_playwright
 from run import QuietHandler, click_move, load_injected, wait_for_last_move
 
 
+ADVANCE_MAIN_BRIEFING = (
+    'White gains space with the Advance center, but the pawn on d4 becomes a fixed target. '
+    'Develop the light-squared bishop outside the pawn chain, then challenge White’s center '
+    'with ...d5 and the thematic ...c5 break. White wants to support the center, finish '
+    'development, and use the extra space for a kingside initiative. Key idea: Get the bishop '
+    'out, then attack the base.'
+)
+
+
 def ensure_hint_off(page):
     hint = page.locator('#hint-toggle')
     if 'Hint: on' in hint.inner_text():
@@ -40,7 +49,7 @@ def assert_history_shows_advice(page):
     history_status = page.locator('#history-status')
 
     assert_cue_only(prompt)
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     click_move(page, 'c7c6')
     wait_for_last_move(page, 'd2d4')
     assert_cue_only(prompt)
@@ -48,14 +57,14 @@ def assert_history_shows_advice(page):
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 2 / 3')
-    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     assert_cue_only(prompt)
     expect(prompt).not_to_contain_text('Advice for')
     expect(prompt).not_to_contain_text('Reviewing this route')
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 1 / 3')
-    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     assert_cue_only(prompt)
 
     page.locator('#history-back').click()
@@ -65,9 +74,9 @@ def assert_history_shows_advice(page):
     expect(prompt).not_to_contain_text('Use → to return')
 
     page.locator('#history-forward').click()
-    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     page.locator('#history-forward').click()
-    expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     page.locator('#history-forward').click()
     expect(history_status).to_have_text('Current position')
     assert_cue_only(prompt)
@@ -126,7 +135,7 @@ def assert_teaching_context_moves_atomically(page):
     panel = page.locator('#opponent-options')
     live_feedback = page.locator('#feedback')
 
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     expect(panel).to_be_hidden()
 
     click_move(page, 'c7c6')
@@ -165,7 +174,7 @@ def assert_teaching_context_moves_atomically(page):
     # Removing White's 2.d4 crosses the next decision boundary; both surfaces change together.
     page.locator('#history-back').click()
     expect(page.locator('#history-status')).to_have_text('Position 2 / 5')
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(prompt).to_have_text(ADVANCE_MAIN_BRIEFING)
     expect(panel).to_be_hidden()
 
     # Forward navigation has the same atomic boundaries: Black moves never advance teaching context.
