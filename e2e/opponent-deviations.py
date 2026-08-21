@@ -132,18 +132,29 @@ def run():
             expect(response_summary.get_by_role('button', name='Review response')).to_be_visible()
 
             # Remount with deterministic randomness so Practice must choose the newly
-            # learned response route. Use the production trainer class so this test
-            # retains the same prompt-presentation contract as the shipped app.
+            # learned response route. Use the same complete course shape as production
+            # so the advice renderer has canonical move-theory data.
             page.evaluate("""async () => {
-              const [{caroKann}, {caroKannResponses}, {OpenRepTrainerApp}] = await Promise.all([
+              const [
+                {caroKann},
+                {caroKannResponses},
+                {caroKannMoveTheory, caroKannLessonDecisions},
+                {OpenRepTrainerApp}
+              ] = await Promise.all([
                 import('./src/openings/caro-kann.js'),
                 import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
+                import('./src/openings/caro-kann-theory.js?v=decision-cues-v1'),
                 import('./src/practice-trainer.js?v=advice-only-v1')
               ]);
               document.querySelector('#app').replaceChildren();
               const app = new OpenRepTrainerApp(
                 document.querySelector('#app'),
-                {...caroKann, responses: caroKannResponses},
+                {
+                  ...caroKann,
+                  responses: caroKannResponses,
+                  moveTheory: caroKannMoveTheory,
+                  lessonDecisions: caroKannLessonDecisions
+                },
                 {evaluator: null, random: () => 0}
               );
               app.mount();
