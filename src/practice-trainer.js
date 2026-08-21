@@ -1,4 +1,5 @@
-import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v2';
+import { CoachingTrainerApp, reviewDecisionPly } from './coaching-trainer.js?v=history-advice-v2';
+import { miniChessToFen } from './position-fen.js';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -44,11 +45,62 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
 }
 
 export class OpenRepTrainerApp extends CoachingTrainerApp {
+  displayedDecisionAdvice() {
+    if (this.practiceCaughtUp || this.isLearnResponseLesson()) return null;
+
+    const displayPly = this.viewPly === null ? this.ply : this.viewPly;
+    const { chess: displayedChess } = this.positionAtPly(displayPly);
+    const review = reviewDecisionPly(displayPly, displayedChess.turn(), this.course.side);
+    if (!review) return null;
+
+    const { chess } = this.positionAtPly(review.decisionPly);
+    if (chess.turn() !== this.course.side) return null;
+    const expected = this.moveAtPly(review.decisionPly);
+    if (!expected) return null;
+    const cue = this.moveTheory.cueAt(miniChessToFen(chess), expected);
+    if (!cue) return null;
+
+    return { ...review, chess, expected, cue };
+  }
+
+  responseAdvice() {
+    if (!this.isLearnResponseLesson()) return null;
+    const expected = this.currentExpectedMove();
+    const showHint = this.viewPly === null
+      && !this.lineFinished
+      && this.chess.turn() === this.course.side
+      && expected
+      && this.hintEnabled;
+    const clue = showHint ? ` Find ${this.chess.notationFor(expected)}.` : '';
+    return `${this.sessionRoute.idea}${clue}`;
+  }
+
   renderDecisionPrompt() {
-    super.renderDecisionPrompt();
-    if (this.viewPly !== null || this.practiceCaughtUp || this.lineFinished || this.isLearnResponseLesson()) return;
-    if (this.chess.turn() !== this.course.side) return;
-    this.root.querySelector('#prompt')?.querySelector('strong')?.remove();
+    const prompt = this.root.querySelector('#prompt');
+    prompt.replaceChildren();
+
+    if (this.practiceCaughtUp) return;
+
+    if (this.isLearnResponseLesson()) {
+      const advice = this.responseAdvice();
+      if (!advice) return;
+      const text = document.createElement('span');
+      text.textContent = advice;
+      prompt.append(text);
+      return;
+    }
+
+    const decision = this.displayedDecisionAdvice();
+    if (!decision) return;
+
+    const showHint = this.viewPly === null
+      && !this.lineFinished
+      && !decision.moveAlreadyPlayed
+      && this.hintEnabled;
+    const clue = showHint ? ` Find ${decision.chess.notationFor(decision.expected)}.` : '';
+    const text = document.createElement('span');
+    text.textContent = `${decision.cue}${clue}`;
+    prompt.append(text);
   }
 
   beginRoute(route, startPly = 0) {
