@@ -196,6 +196,23 @@ export const caroKann = {
         11: '6...e6 reinforces the center and opens the dark bishop.',
         13: '7...Nge7 supports ...Nf5 and keeps the f-pawn free.'
       }
+    },
+    {
+      id: 'accelerated-panov',
+      title: '2.c4 — Accelerated Panov',
+      variation: '1.e4 c6 2.c4 d5 3.exd5 cxd5 4.cxd5 Nf6',
+      summary: 'Challenge immediately, recover the temporary d5-pawn with development, then simplify into an easy game.',
+      moves: ['e2e4','c7c6','c2c4','d7d5','e4d5','c6d5','c4d5','g8f6','b1c3','f6d5','g1f3','d5c3','d2c3','d8d1','e1d1','b8c6'],
+      notes: {
+        1: '1...c6 begins the Caro-Kann and prepares the central challenge.',
+        3: '2...d5 meets White’s early c4 directly instead of giving up the center.',
+        5: '3...cxd5 restores the central pawn and keeps the position open enough for active development.',
+        7: '4...Nf6 is the key move. Develop with tempo on d5 instead of exposing the queen to Nc3.',
+        9: '5...Nxd5 recovers the temporary pawn now that the knight can do it without losing time.',
+        11: '6...Nxc3 simplifies White’s active queenside knight before completing development.',
+        13: '7...Qxd1+ uses the open d-file to trade queens and remove White’s initiative.',
+        15: '8...Nc6 finishes the opening with easy development and equal material.'
+      }
     }
   ]
 };
