@@ -91,7 +91,9 @@ A move attempt is a function of the displayed chess/decision state, not of the n
 
 ## 4. Architecture invariants
 
-OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
+Read `ARCHITECTURE.md` before changing repertoire discovery, curriculum modeling, position/response identity, generated content, personalization, or opening-data ingestion. Its diagrams are the expanded reference architecture.
+
+OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, curriculum presentation, and learner progress as separate concerns. The current response architecture should evolve along this seam:
 
 ```mermaid
 flowchart LR
@@ -109,7 +111,36 @@ flowchart LR
     G["Progress<br/>line scheduling + learned response IDs"] --> T
 ```
 
-Key invariants:
+### Content-generation boundary
+
+Opening-database exploration and broad engine analysis belong at offline/content-generation time, not in the browser runtime.
+
+```mermaid
+flowchart LR
+    DB["Opening database snapshot"] --> GEN["Offline generator"]
+    SF["Stockfish / theory"] --> GEN
+    POL["Coverage + repertoire policy"] --> GEN
+    GEN --> ART["Deterministic candidate content artifact"]
+    ART --> PR["Reviewable Git diff / draft PR"]
+    PR --> SNAP["Committed versioned snapshot"]
+    SNAP --> RUN["Static browser runtime"]
+```
+
+- A routine production build must consume committed content; it must not silently query live opening databases or regenerate the curriculum.
+- Scheduled/manual refreshes may generate candidate changes, but material curriculum/repertoire changes should be reviewed through Git/PRs.
+- Generator output should be deterministic for a fixed database snapshot, cohort, engine version/settings, generation-policy version, and curated overrides.
+- The runtime coverage index answers what the shipped repertoire contains. It should not become the system that decides what repertoire ought to exist.
+- Future personalized frequency/tier views should normally re-rank accepted stable content rather than mutate position/response identity in the browser.
+
+### Curriculum model boundary
+
+- Generic curriculum mechanics belong in opening-agnostic modules. Opening-specific files should contain data/evidence, not copied validator/builder/trainer logic.
+- A line has one primary curriculum family for deterministic course-map placement. A directly surfaced response may also have at most one primary family.
+- Pedagogical concepts/tags are many-to-many and separate from primary families. Do not use the course hierarchy as the ontology for pawn structures, motifs, transpositions, recognition cues, or other cross-cutting teaching concepts.
+- Curriculum tier, family, evidence, ordering, labels, cohort, and presentation are metadata, not line/position/response identity.
+- Future opening generators should emit the same generic curriculum schema consumed by curated opening data today.
+
+Key identity invariants:
 - chess position identity is based on normalized position state, not move-order history;
 - a response is canonically identified by `(position, opponent move)`;
 - `responseId` is the stable progress/content handle for that canonical response;
