@@ -79,13 +79,6 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     this.branchTeaching = new BranchTeachingIndex(course);
   }
 
-  branchTeachingLineId() {
-    if (this.sessionRoute?.kind === 'branch' && this.sessionRoute.targetLineId) {
-      return this.sessionRoute.targetLineId;
-    }
-    return this.line?.id ?? null;
-  }
-
   renderShell() {
     super.renderShell();
     const liveFeedback = this.root.querySelector('#feedback');
@@ -120,10 +113,13 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     const expected = this.moveAtPly(review.decisionPly);
     if (!expected) return null;
 
-    const branchBriefing = this.branchTeaching.briefingForDecision(
-      this.branchTeachingLineId(),
+    const teachingLineId = this.sessionRoute?.kind === 'branch' && this.sessionRoute.targetLineId
+      ? this.sessionRoute.targetLineId
+      : this.line?.id ?? null;
+    const branchBriefing = this.branchTeaching?.briefingForDecision?.(
+      teachingLineId,
       review.decisionPly
-    );
+    ) ?? null;
     const cue = branchBriefing ?? this.moveTheory.cueAt(miniChessToFen(chess), expected);
     if (!cue) return null;
 
