@@ -4,7 +4,6 @@ import functools
 import http.server
 import json
 import os
-import re
 import threading
 
 from playwright.sync_api import Error as PlaywrightError
@@ -26,7 +25,7 @@ def mount_deterministic_app(page, injected: bool):
             const values = [0.9, 0, 0];
             const random = () => values.length ? values.shift() : 0;
             document.querySelector('#app').replaceChildren();
-            new window.__OpenRep.CoachingTrainerApp(
+            new window.__OpenRep.OpenRepTrainerApp(
               document.querySelector('#app'),
               window.__OpenRep.caroKann,
               { random, evaluator: null }
@@ -37,16 +36,28 @@ def mount_deterministic_app(page, injected: bool):
 
     page.evaluate("""
       async () => {
-        const [{ CoachingTrainerApp }, { caroKann }] = await Promise.all([
-          import('./src/coaching-trainer.js?v=practice-route-label-v1'),
-          import('./src/openings/caro-kann.js')
+        const [
+          { OpenRepTrainerApp },
+          { caroKann },
+          { caroKannResponses },
+          { caroKannMoveTheory, caroKannLessonDecisions }
+        ] = await Promise.all([
+          import('./src/practice-trainer.js?v=advice-only-v1'),
+          import('./src/openings/caro-kann.js'),
+          import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
+          import('./src/openings/caro-kann-theory.js?v=decision-cues-v1')
         ]);
         const values = [0.9, 0, 0];
         const random = () => values.length ? values.shift() : 0;
         document.querySelector('#app').replaceChildren();
-        new CoachingTrainerApp(
+        new OpenRepTrainerApp(
           document.querySelector('#app'),
-          caroKann,
+          {
+            ...caroKann,
+            responses: caroKannResponses,
+            moveTheory: caroKannMoveTheory,
+            lessonDecisions: caroKannLessonDecisions
+          },
           { random, evaluator: null }
         ).mount();
       }
@@ -55,10 +66,18 @@ def mount_deterministic_app(page, injected: bool):
 
 def complete_current_practice_route(page):
     prompt = page.locator('#prompt')
+    next_button = page.locator('#next-line')
     for _ in range(20):
-        expect(prompt).to_have_text(re.compile(r'(Your move as Black|Complete)'))
-        if 'Complete' in prompt.inner_text():
+        if 'Grade to continue' in next_button.inner_text():
+            expect(prompt).not_to_be_empty()
+            expect(prompt.locator('strong')).to_have_count(0)
+            expect(prompt).not_to_contain_text('Complete')
             return
+
+        expect(prompt).not_to_be_empty()
+        expect(prompt.locator('strong')).to_have_count(0)
+        expect(prompt).not_to_contain_text('Your move as Black')
+        expect(prompt).not_to_contain_text('Complete')
 
         hint_from = page.locator('.square.hint-from')
         hint_to = page.locator('.square.hint-to')

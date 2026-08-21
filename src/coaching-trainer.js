@@ -2,12 +2,22 @@ import { TrainerApp } from './trainer.js?v=hint-toggle-v3';
 import { MiniChess } from './mini-chess.js';
 import { miniChessToFen } from './position-fen.js';
 import { explainWrongMove } from './move-explanations.js';
-import { MoveTheoryIndex } from './move-theory.js?v=terminal-theory-v1';
+import { MoveTheoryIndex } from './move-theory.js?v=decision-cues-v1';
 import { summarizeExactBranchMatches } from './repertoire-moves.js?v=response-learning-v2';
 import { practiceRoutePresentation } from './practice-selection.js?v=practice-route-label-v1';
 import { EvaluationBar } from './evaluation-bar.js?v=eval-bar-v4';
 import { classifyMoveQuality, formatMoveQualityLabel } from './evaluation.js?v=move-quality-v1';
 import { StockfishEvaluator } from './stockfish-evaluator.js?v=move-quality-v1';
+
+export function reviewDecisionPly(displayPly, displayedTurn, courseSide) {
+  if (!Number.isInteger(displayPly) || displayPly < 0) return null;
+  if (!['w', 'b'].includes(displayedTurn) || !['w', 'b'].includes(courseSide)) return null;
+  if (displayedTurn === courseSide) {
+    return { decisionPly: displayPly, moveAlreadyPlayed: false };
+  }
+  if (displayPly === 0) return null;
+  return { decisionPly: displayPly - 1, moveAlreadyPlayed: true };
+}
 
 export class CoachingTrainerApp extends TrainerApp {
   constructor(root, course, options = {}) {
@@ -20,6 +30,7 @@ export class CoachingTrainerApp extends TrainerApp {
     this.evaluationRequest = 0;
     this.wrongMoveEvaluationRequest = 0;
     this.evaluationBar = null;
+    this.preservePromptDuringAcceptedMoveRefresh = false;
   }
 
   beginRoute(route, startPly = 0) {
@@ -51,8 +62,72 @@ export class CoachingTrainerApp extends TrainerApp {
     return practiceRoutePresentation(this.line, this.sessionRoute);
   }
 
+  moveAtPly(ply) {
+    if (this.completedTerminalMove?.ply === ply) return this.completedTerminalMove.move;
+    return this.sessionRoute?.moves?.[ply] ?? null;
+  }
+
+  historicalDecisionCue() {
+    if (this.practiceCaughtUp || this.viewPly === null || this.isLearnResponseLesson()) return null;
+
+    const { chess: displayedChess } = this.positionAtPly(this.viewPly);
+    const review = reviewDecisionPly(this.viewPly, displayedChess.turn(), this.course.side);
+    if (!review) return null;
+
+    const { chess } = this.positionAtPly(review.decisionPly);
+    if (chess.turn() !== this.course.side) return null;
+    const expected = this.moveAtPly(review.decisionPly);
+    if (!expected) return null;
+    const cue = this.moveTheory.cueAt(miniChessToFen(chess), expected);
+    if (!cue) return null;
+
+    return { ...review, chess, expected, cue };
+  }
+
+  currentDecisionCue() {
+    if (this.practiceCaughtUp || this.viewPly !== null || this.lineFinished || this.isLearnResponseLesson()) {
+      return null;
+    }
+    if (this.chess.turn() !== this.course.side) return null;
+
+    const expected = this.currentExpectedMove();
+    if (!expected) return null;
+    return this.moveTheory.cueAt(miniChessToFen(this.chess), expected);
+  }
+
+  renderDecisionPrompt() {
+    const prompt = this.root.querySelector('#prompt');
+    if (this.viewPly !== null) {
+      const review = this.historicalDecisionCue();
+      prompt.replaceChildren();
+      if (!review) return;
+      const advice = document.createElement('span');
+      advice.textContent = review.cue;
+      prompt.append(advice);
+      return;
+    }
+
+    const decisionCue = this.currentDecisionCue();
+    if (!decisionCue) return;
+
+    const expected = this.currentExpectedMove();
+    const clue = this.hintEnabled ? ` Find ${this.chess.notationFor(expected)}.` : '';
+    prompt.innerHTML = `<strong>Your move as Black.</strong><span>${decisionCue}${clue}</span>`;
+  }
+
   refresh() {
+    const prompt = this.root.querySelector('#prompt');
+    const preservedPrompt = this.preservePromptDuringAcceptedMoveRefresh && prompt
+      ? prompt.innerHTML
+      : null;
+
     super.refresh();
+
+    if (preservedPrompt !== null && !this.lineFinished && this.chess.turn() !== this.course.side) {
+      prompt.innerHTML = preservedPrompt;
+    } else {
+      this.renderDecisionPrompt();
+    }
     if (this.mode === 'practice' && !this.practiceCaughtUp) {
       const presentation = this.practicePresentation();
       this.root.querySelector('#line-title').textContent = presentation.title;
@@ -324,7 +399,12 @@ export class CoachingTrainerApp extends TrainerApp {
 
     if (classification.kind === 'expected') {
       this.wrongMoveEvaluationRequest += 1;
-      super.onUserMove(from, to);
+      this.preservePromptDuringAcceptedMoveRefresh = true;
+      try {
+        super.onUserMove(from, to);
+      } finally {
+        this.preservePromptDuringAcceptedMoveRefresh = false;
+      }
       return;
     }
 

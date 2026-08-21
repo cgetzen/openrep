@@ -40,6 +40,19 @@ def is_highlighted(page, name: str) -> bool:
     return square(page, name).evaluate('(el) => el.classList.contains("last-move")')
 
 
+def wait_for_last_move(page, uci: str):
+    """Synchronize on the opponent autoplay completing, not on prompt copy."""
+    expect(square(page, uci[:2])).to_have_class(re.compile(r'last-move'))
+    expect(square(page, uci[2:4])).to_have_class(re.compile(r'last-move'))
+
+
+def expect_decision_prompt(page):
+    prompt = page.locator('#prompt')
+    expect(prompt).not_to_be_empty()
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
+
+
 def browser_bundle() -> str:
     """Concatenate dependency-free modules for URL-blocked test environments."""
     paths = [
@@ -56,6 +69,7 @@ def browser_bundle() -> str:
         ROOT / 'src/repertoire-moves.js',
         ROOT / 'src/move-theory.js',
         ROOT / 'src/coaching-trainer.js',
+        ROOT / 'src/practice-trainer.js',
     ]
     chunks = []
     for path in paths:
@@ -65,8 +79,8 @@ def browser_bundle() -> str:
         chunks.append(source)
     chunks.append(
         "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions };\n"
-        "window.__OpenRep = { CoachingTrainerApp, caroKann: course };\n"
-        "new CoachingTrainerApp(document.querySelector('#app'), course).mount();"
+        "window.__OpenRep = { OpenRepTrainerApp, caroKann: course };\n"
+        "new OpenRepTrainerApp(document.querySelector('#app'), course).mount();"
     )
     return '\n\n'.join(chunks)
 
@@ -118,7 +132,7 @@ def restore_app(page, injected: bool):
     if injected:
         page.evaluate("""
           document.querySelector('#app').replaceChildren();
-          new window.__OpenRep.CoachingTrainerApp(
+          new window.__OpenRep.OpenRepTrainerApp(
             document.querySelector('#app'), window.__OpenRep.caroKann
           ).mount();
         """)
@@ -157,7 +171,7 @@ def run():
 
             expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()
             expect(page.locator('#line-title')).to_have_text('Advance — Main setup')
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            expect_decision_prompt(page)
             expect(page.locator('#prompt')).to_contain_text('c6')
             results.append('loads course and auto-plays 1.e4')
 
@@ -183,8 +197,10 @@ def run():
             page.locator('#reset-line').click()
             expect(page.locator('#prompt')).to_contain_text('c6')
             click_move(page, 'c7c6')
+            wait_for_last_move(page, 'd2d4')
             expect(page.locator('#prompt')).to_contain_text('d5')
             click_move(page, 'd7d5')
+            wait_for_last_move(page, 'e4e5')
             expect(page.locator('#prompt')).to_contain_text('Bf5')
             click_move(page, 'c6c5')
             expect(page.locator('#feedback')).to_contain_text('c5 is a repertoire move')
@@ -214,7 +230,8 @@ def run():
             drag_move(page, 'c7c6')
             expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
             expect(page.locator('.piece[data-piece-square="c7"]')).to_have_count(0)
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
+            wait_for_last_move(page, 'd2d4')
+            expect_decision_prompt(page)
             assert is_highlighted(page, 'd2') and is_highlighted(page, 'd4')
 
             # ArrowLeft rewinds without mutating training state; history is read-only.
@@ -238,10 +255,13 @@ def run():
             # Complete line 1 once, grade it, then prove browser persistence.
             page.locator('#reset-line').click()
             first_line = get_course_lines(page, injected)[0]
-            for uci in first_line['moves'][1::2]:
-                expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                click_move(page, uci)
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            for ply in range(1, len(first_line['moves']), 2):
+                expect_decision_prompt(page)
+                click_move(page, first_line['moves'][ply])
+                if ply + 1 < len(first_line['moves']):
+                    wait_for_last_move(page, first_line['moves'][ply + 1])
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(page.locator('#feedback')).to_contain_text('clean rep')
             page.get_by_role('button', name='Good').click()
             assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
@@ -257,10 +277,13 @@ def run():
                 print(f'ui line {index+1}/12: {line["title"]}', flush=True)
                 page.locator(f'[data-line-index="{index}"]').click()
                 expect(page.locator('#line-title')).to_have_text(line['title'])
-                for uci in line['moves'][1::2]:
-                    expect(page.locator('#prompt')).to_contain_text('Your move as Black')
-                    click_move(page, uci)
-                expect(page.locator('#prompt')).to_contain_text('Complete')
+                for ply in range(1, len(line['moves']), 2):
+                    expect_decision_prompt(page)
+                    click_move(page, line['moves'][ply])
+                    if ply + 1 < len(line['moves']):
+                        wait_for_last_move(page, line['moves'][ply + 1])
+                expect_decision_prompt(page)
+                expect(page.locator('#prompt')).not_to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
                 page.get_by_role('button', name='Good').click()
             expect(page.locator('#course-progress')).to_contain_text('12/12')

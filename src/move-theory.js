@@ -10,6 +10,10 @@ function positionKey(chess) {
   return normalizePositionKey(miniChessToFen(chess));
 }
 
+function nonEmptyText(value) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
 export function moveTheoryIdentityKey(position, move) {
   const normalizedPosition = normalizePositionKey(position);
   const normalizedMove = moveKey(move);
@@ -70,15 +74,34 @@ export class MoveTheoryIndex {
     return { ...occurrence, key };
   }
 
+  mergeTheory(existing, incoming, identity) {
+    for (const field of ['cue', 'rationale']) {
+      const current = nonEmptyText(existing[field]);
+      const next = nonEmptyText(incoming[field]);
+      if (current && next && current !== next) {
+        throw new Error(`Conflicting move theory ${field} for ${identity}`);
+      }
+    }
+
+    const authoringAnchors = [
+      ...(existing.authoringAnchors ?? (existing.anchor ? [existing.anchor] : [])),
+      ...(incoming.anchor ? [incoming.anchor] : [])
+    ];
+
+    return {
+      ...existing,
+      cue: nonEmptyText(existing.cue) ?? nonEmptyText(incoming.cue),
+      rationale: nonEmptyText(existing.rationale) ?? nonEmptyText(incoming.rationale),
+      authoringAnchors
+    };
+  }
+
   buildTheory() {
     for (const entry of this.course?.moveTheory ?? []) {
       const { key, chess } = this.resolvePosition(entry, 'Move theory');
       const move = moveKey(entry.move);
       const identity = moveTheoryIdentityKey(key, move);
       if (!identity) throw new Error('Move theory has an invalid move');
-      if (this.theoryByIdentity.has(identity)) {
-        throw new Error(`Duplicate move theory identity: ${identity}`);
-      }
 
       const probe = chess.clone();
       let notation;
@@ -89,14 +112,23 @@ export class MoveTheoryIndex {
         throw new Error(`Move theory has an illegal move at ${identity}`);
       }
 
-      this.theoryByIdentity.set(identity, {
+      const theory = {
         ...entry,
         move,
         notation,
+        cue: nonEmptyText(entry.cue),
+        rationale: nonEmptyText(entry.rationale),
         positionKey: key,
         theoryKey: identity,
-        source: entry.source ?? 'curated'
-      });
+        source: entry.source ?? 'curated',
+        authoringAnchors: entry.anchor ? [entry.anchor] : []
+      };
+
+      const existing = this.theoryByIdentity.get(identity);
+      this.theoryByIdentity.set(
+        identity,
+        existing ? this.mergeTheory(existing, theory, identity) : theory
+      );
     }
   }
 
@@ -142,6 +174,9 @@ export class MoveTheoryIndex {
         if (!theory) {
           throw new Error(`Lesson decision ${entry.id} is missing move theory for ${move}`);
         }
+        if (!theory.rationale) {
+          throw new Error(`Lesson decision ${entry.id} is missing move rationale for ${move}`);
+        }
         return {
           move,
           notation: theory.notation,
@@ -168,6 +203,10 @@ export class MoveTheoryIndex {
 
   theoryAt(position, move) {
     return this.theoryByIdentity.get(moveTheoryIdentityKey(position, move)) ?? null;
+  }
+
+  cueAt(position, move) {
+    return this.theoryAt(position, move)?.cue ?? null;
   }
 
   decisionForLine(lineId, ply) {
