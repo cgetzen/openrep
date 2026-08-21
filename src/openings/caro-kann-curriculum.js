@@ -103,9 +103,9 @@ export const caroKannCurriculum = {
       title: '2.c4 — Accelerated Panov',
       role: 'Top-level opponent decision',
       recognition: 'White plays c4 immediately instead of building the normal d4 center.',
-      plan: 'Stay in Caro-Kann territory with ...d5 and be ready for early central liquidation.',
-      lineIds: [],
-      responseIds: ['accelerated-panov-c4'],
+      plan: 'Meet c4 with ...d5, then recover the temporary d5-pawn with ...Nf6 and ...Nxd5 rather than exposing the queen too early.',
+      lineIds: ['accelerated-panov'],
+      responseIds: [],
       evidence: {
         label: '≈4–5% of Caro-Kanns',
         detail: '2.c4 is materially more common than most named sidelines and belongs in the practical-coverage layer.'
@@ -173,8 +173,8 @@ export const caroKannCurriculum = {
       id: 'central-counterplay',
       title: 'Central counterplay',
       description: 'Recognize when Black should challenge White’s center with ...d5 or ...c5 rather than react on the flank.',
-      lineIds: ['advance-early-c5', 'advance-main', 'advance-tal', 'advance-bayonet', 'quiet-d3'],
-      responseIds: ['advance-c5-dxc5', 'advance-c5-nf3', 'accelerated-panov-c4']
+      lineIds: ['advance-early-c5', 'advance-main', 'advance-tal', 'advance-bayonet', 'quiet-d3', 'accelerated-panov'],
+      responseIds: ['advance-c5-dxc5', 'advance-c5-nf3']
     },
     {
       id: 'transposition-recognition',
@@ -187,15 +187,15 @@ export const caroKannCurriculum = {
       id: 'exchange-structures',
       title: 'Exchange structures',
       description: 'Distinguish symmetrical Exchange play from Panov/IQP structures by White’s c-pawn commitment.',
-      lineIds: ['exchange-main', 'panov-main', 'early-nf3'],
-      responseIds: ['exchange-nf3', 'exchange-c3', 'accelerated-panov-c4']
+      lineIds: ['exchange-main', 'panov-main', 'early-nf3', 'accelerated-panov'],
+      responseIds: ['exchange-nf3', 'exchange-c3']
     },
     {
       id: 'iqp-play',
       title: 'Isolated queen pawn play',
       description: 'Recognize when c4 and central exchanges lead to IQP positions and active piece play.',
       lineIds: ['panov-main'],
-      responseIds: ['accelerated-panov-c4']
+      responseIds: []
     }
   ]
 };
