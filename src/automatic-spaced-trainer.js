@@ -38,6 +38,10 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
     projection.ply = replayPly;
     projection.viewPly = null;
     projection.lineFinished = false;
+
+    // History changes the position supplied to the normal attempt pipeline,
+    // not the semantics of that pipeline. Only session-owned mutations are
+    // replaced with no-ops on this projection.
     projection.recordTrainingMistake = () => {};
     projection.currentExpectedMove = () => replay.expected;
     projection.currentRouteNote = () => this.currentRouteNote(replayPly);
