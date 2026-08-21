@@ -1,5 +1,5 @@
 import { MiniChess } from './mini-chess.js';
-import { lineWeaknessProfile } from './line-learning.js';
+import { lineWeaknessProfile } from './progress.js';
 
 export const PRACTICE_SELECTIONS = Object.freeze(['spaced', 'weak']);
 
