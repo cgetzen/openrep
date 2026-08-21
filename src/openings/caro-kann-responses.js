@@ -110,18 +110,5 @@ export const caroKannResponses = [
     label: 'Solid c3 setup',
     idea: 'White supports d4 with c3 instead of developing immediately. Keep the same active Exchange plan and develop toward d4 rather than mirroring passively.',
     responseNote: 'Nc6 develops with pressure on d4 and keeps Black ready for Nf6 and active piece play.'
-  },
-  {
-    id: 'accelerated-panov-c4',
-    source: 'curated',
-    discovery: 'coverage-driven',
-    anchor: { lineId: 'advance-early-c5', ply: 2 },
-    teachingOwnerLineId: 'advance-early-c5',
-    move: 'c2c4',
-    response: 'd7d5',
-    continuation: ['e4d5', 'c6d5', 'c4d5', 'd8d5', 'b1c3'],
-    label: '2.c4 Accelerated Panov',
-    idea: 'White challenges the Caro-Kann center immediately with c4. Stay in the repertoire with d5 and be ready for early central liquidation instead of abandoning the opening structure.',
-    responseNote: 'd5 is the principled Caro-Kann answer: challenge e4 immediately and meet the Accelerated Panov in the center.'
   }
 ];
