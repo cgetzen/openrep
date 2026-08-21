@@ -88,25 +88,25 @@ def assert_quiet_d3_feedback_tracks_history(page):
     live_feedback = page.locator('#feedback')
     history_feedback = page.locator('#history-feedback')
     expect(live_feedback).to_have_text(
-        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+        'Bd6 develops toward the kingside and supports the center.'
     )
 
     page.locator('#history-back').click()
     expect(history_feedback).to_be_visible()
     expect(history_feedback).to_have_text(
-        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+        'Bd6 develops toward the kingside and supports the center.'
     )
     expect(live_feedback).to_be_hidden()
 
     page.locator('#history-back').click()
     expect(history_feedback).to_have_text(
-        'e5 — 3...e5 creates a broad center because White has not challenged it.'
+        'e5 creates a broad center because White has not challenged it.'
     )
 
     page.locator('#history-back').click()
     page.locator('#history-back').click()
     expect(history_feedback).to_have_text(
-        'd5 — 2...d5 claims equal central space immediately.'
+        'd5 claims equal central space immediately.'
     )
 
     for _ in range(4):
@@ -114,7 +114,7 @@ def assert_quiet_d3_feedback_tracks_history(page):
     expect(page.locator('#history-status')).to_have_text('Current position')
     expect(live_feedback).to_be_visible()
     expect(live_feedback).to_have_text(
-        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+        'Bd6 develops toward the kingside and supports the center.'
     )
     expect(history_feedback).to_be_hidden()
 
@@ -124,6 +124,7 @@ def assert_teaching_context_moves_atomically(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
     panel = page.locator('#opponent-options')
+    live_feedback = page.locator('#feedback')
 
     expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
     expect(panel).to_be_hidden()
@@ -133,7 +134,12 @@ def assert_teaching_context_moves_atomically(page):
     d4_advice = prompt.inner_text()
     d4_options = opponent_moves(panel)
     expect(panel).to_be_visible()
+    expect(live_feedback).to_be_visible()
     assert d4_options
+    feedback_box = live_feedback.bounding_box()
+    options_box = panel.bounding_box()
+    assert feedback_box and options_box
+    assert feedback_box['y'] < options_box['y']
 
     click_move(page, 'd7d5')
     wait_for_last_move(page, 'e4e5')
