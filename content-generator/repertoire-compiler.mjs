@@ -77,14 +77,13 @@ function compileDecision(decision, thresholds) {
     assert(responseByOpponentMove.has(move), `Decision ${decision.id} is missing a repertoire response for coverage move ${move}`);
   }
 
-  const moves = rankedMoves.map(entry => {
-    const response = responseByOpponentMove.get(entry.move) ?? null;
-    return Object.freeze({
+  const moves = rankedMoves
+    .filter(entry => responseByOpponentMove.has(entry.move))
+    .map(entry => Object.freeze({
       ...entry,
       tier: curriculumTierForMove(entry.move, coverage, thresholds),
-      response: response ? Object.freeze({ ...response }) : null
-    });
-  });
+      response: Object.freeze({ ...responseByOpponentMove.get(entry.move) })
+    }));
 
   return Object.freeze({
     id: decision.id,
