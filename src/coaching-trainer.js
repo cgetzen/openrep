@@ -116,6 +116,7 @@ export class CoachingTrainerApp extends TrainerApp {
   }
 
   refreshHistoryAdvice() {
+    if (this.viewPly === null) super.refreshHistoryAdvice();
     this.renderDecisionPrompt();
   }
 
