@@ -1,6 +1,7 @@
 import { AutomaticSpacedTrainerApp } from './automatic-spaced-trainer.js?v=history-attempt-parity-v3';
 import { lineLearningStatus } from './progress.js';
 import { normalizeTeachingProse } from './teaching-copy.js';
+import { curriculumTeachingUnitPresentation } from './curriculum.js?v=teaching-unit-presentation-v1';
 
 function responseLearned(progress, responseId) {
   return (progress?.learnedResponses ?? []).includes(responseId);
@@ -27,6 +28,34 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
       summary.textContent = displayText(presentation.summary);
       heading?.querySelector('div')?.append(summary);
     }
+  }
+
+  responseTeachingUnitPresentation(responseId) {
+    const response = this.repertoire.responseById?.get(responseId);
+    if (!response) return null;
+    return curriculumTeachingUnitPresentation(
+      this.course.curriculum,
+      'response',
+      responseId,
+      response.label ?? 'Response lesson'
+    );
+  }
+
+  refresh() {
+    super.refresh();
+    if (!this.isLearnResponseLesson()) return;
+
+    const presentation = this.responseTeachingUnitPresentation(this.sessionRoute?.responseId);
+    if (!presentation) return;
+
+    const counterParts = ['LEARN'];
+    if (presentation.tierLabel) counterParts.push(presentation.tierLabel.toUpperCase());
+    counterParts.push('RESPONSE');
+    this.root.querySelector('#line-counter').textContent = counterParts.join(' · ');
+    this.root.querySelector('#line-title').textContent = displayText(presentation.title);
+    this.root.querySelector('#line-variation').textContent = displayText(
+      presentation.meta || 'Response lesson'
+    );
   }
 
   curriculumResponseRoute(responseId) {
@@ -100,7 +129,8 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
   renderCurriculumResponse(container, responseId) {
     const response = this.repertoire.responseById?.get(responseId);
     const route = this.curriculumResponseRoute(responseId);
-    if (!response || !route) return;
+    const presentation = this.responseTeachingUnitPresentation(responseId);
+    if (!response || !route || !presentation) return;
 
     const learned = responseLearned(this.progress, responseId);
     const button = document.createElement('button');
@@ -114,9 +144,14 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
 
     const copy = document.createElement('span');
     const title = document.createElement('strong');
-    title.textContent = displayText(response.label);
     const detail = document.createElement('small');
-    detail.textContent = displayText(`${route.opponentLabel} → ${route.responseLabel}`);
+    if (presentation.standaloneResponseFamily) {
+      title.textContent = displayText(`${route.opponentLabel} → ${route.responseLabel}`);
+      detail.textContent = 'Repertoire response';
+    } else {
+      title.textContent = displayText(presentation.title);
+      detail.textContent = displayText(`${route.opponentLabel} → ${route.responseLabel}`);
+    }
     copy.append(title, detail);
 
     const pill = document.createElement('span');
