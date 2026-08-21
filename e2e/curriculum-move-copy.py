@@ -34,8 +34,21 @@ def run():
             expect(plan).to_contain_text('Challenge d4 immediately with c5')
             expect(plan).not_to_contain_text('...c5')
 
+            accelerated = page.locator('[data-curriculum-family="accelerated-panov"]')
+            expect(accelerated.locator('h4')).to_have_text('2.c4 — Accelerated Panov')
+            response = accelerated.locator('[data-curriculum-response="accelerated-panov-c4"]')
+            expect(response.locator('strong')).to_have_text('2.c4 → d5')
+            expect(response).not_to_contain_text('Accelerated Panov')
+            response.click()
+
+            expect(page.locator('#line-title')).to_have_text('2.c4 — Accelerated Panov')
+            expect(page.locator('#line-variation')).to_have_text('Important · Top-level opponent decision')
+            expect(page.locator('#line-counter')).to_have_text('LEARN · IMPORTANT · RESPONSE')
+            expect(page.locator('.lesson-card')).not_to_contain_text('Another good move')
+            expect(page.locator('.lesson-card')).not_to_contain_text('from Advance — Immediate counterplay')
+
             browser.close()
-            print('Curriculum move notation omits black-move ellipses')
+            print('Curriculum notation and canonical response lesson presentation regressions passed')
     finally:
         server.shutdown()
         server.server_close()
