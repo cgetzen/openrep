@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TrainerApp } from '../src/trainer.js';
-import { OpenRepTrainerApp } from '../src/practice-trainer.js';
+import {
+  OpenRepTrainerApp,
+  formatMoveTeachingFeedback,
+  normalizeMoveTeachingFeedback
+} from '../src/practice-trainer.js';
 import { MiniChess } from '../src/mini-chess.js';
 
 function historyHarness({ ply = 4, viewPly = null } = {}) {
@@ -77,6 +81,21 @@ test('OpenRep history projection refreshes all position-derived right-panel surf
   ]);
 });
 
+test('move teaching feedback removes repeated move-number notation at presentation time', () => {
+  assert.equal(
+    formatMoveTeachingFeedback('Bxf3', '4...Bxf3 avoids losing time to h3 and creates a slight structural concession.'),
+    'Bxf3 avoids losing time to h3 and creates a slight structural concession.'
+  );
+  assert.equal(
+    normalizeMoveTeachingFeedback('Bxf3 — 4...Bxf3 avoids losing time to h3 and creates a slight structural concession.'),
+    'Bxf3 avoids losing time to h3 and creates a slight structural concession.'
+  );
+  assert.equal(
+    normalizeMoveTeachingFeedback('Line complete — clean rep.'),
+    'Line complete — clean rep.'
+  );
+});
+
 test('historical move feedback follows the most recent repertoire move at displayPly', () => {
   const moves = [
     'e2e4', 'c7c6', 'd2d3', 'd7d5', 'b1d2',
@@ -103,10 +122,10 @@ test('historical move feedback follows the most recent repertoire move at displa
     return OpenRepTrainerApp.prototype.displayedMoveFeedback.call(app)?.text ?? '';
   };
 
-  assert.equal(feedbackAt(9), 'Bd6 — 4...Bd6 develops toward the kingside and supports the center.');
-  assert.equal(feedbackAt(8), 'Bd6 — 4...Bd6 develops toward the kingside and supports the center.');
-  assert.equal(feedbackAt(7), 'e5 — 3...e5 creates a broad center because White has not challenged it.');
-  assert.equal(feedbackAt(5), 'd5 — 2...d5 claims equal central space immediately.');
+  assert.equal(feedbackAt(9), 'Bd6 develops toward the kingside and supports the center.');
+  assert.equal(feedbackAt(8), 'Bd6 develops toward the kingside and supports the center.');
+  assert.equal(feedbackAt(7), 'e5 creates a broad center because White has not challenged it.');
+  assert.equal(feedbackAt(5), 'd5 claims equal central space immediately.');
   assert.equal(feedbackAt(1), '');
 });
 
