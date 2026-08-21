@@ -1,5 +1,6 @@
 import { CoachingTrainerApp, reviewDecisionPly } from './coaching-trainer.js?v=history-advice-v2';
 import { miniChessToFen } from './position-fen.js';
+import { BranchTeachingIndex } from './branch-teaching.js?v=branch-briefings-v1';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -73,6 +74,18 @@ export function normalizeMoveTeachingFeedback(message) {
 }
 
 export class OpenRepTrainerApp extends CoachingTrainerApp {
+  constructor(root, course, options = {}) {
+    super(root, course, options);
+    this.branchTeaching = new BranchTeachingIndex(course);
+  }
+
+  branchTeachingLineId() {
+    if (this.sessionRoute?.kind === 'branch' && this.sessionRoute.targetLineId) {
+      return this.sessionRoute.targetLineId;
+    }
+    return this.line?.id ?? null;
+  }
+
   renderShell() {
     super.renderShell();
     const liveFeedback = this.root.querySelector('#feedback');
@@ -106,7 +119,12 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     if (chess.turn() !== this.course.side) return null;
     const expected = this.moveAtPly(review.decisionPly);
     if (!expected) return null;
-    const cue = this.moveTheory.cueAt(miniChessToFen(chess), expected);
+
+    const branchBriefing = this.branchTeaching.briefingForDecision(
+      this.branchTeachingLineId(),
+      review.decisionPly
+    );
+    const cue = branchBriefing ?? this.moveTheory.cueAt(miniChessToFen(chess), expected);
     if (!cue) return null;
 
     return {
@@ -115,7 +133,8 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
       opponentDecisionPly: review.decisionPly > 0 ? review.decisionPly - 1 : null,
       chess,
       expected,
-      cue
+      cue,
+      teachingKind: branchBriefing ? 'branch-briefing' : 'move-cue'
     };
   }
 
