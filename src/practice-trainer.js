@@ -46,7 +46,7 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
 
 export class OpenRepTrainerApp extends CoachingTrainerApp {
   displayedDecisionAdvice() {
-    if (this.practiceCaughtUp || this.isLearnResponseLesson()) return null;
+    if (this.practiceCaughtUp || this.sessionRoute?.kind === 'response') return null;
 
     const displayPly = this.viewPly === null ? this.ply : this.viewPly;
     const { chess: displayedChess } = this.positionAtPly(displayPly);
@@ -64,7 +64,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
   }
 
   responseAdvice() {
-    if (!this.isLearnResponseLesson()) return null;
+    if (this.sessionRoute?.kind !== 'response') return null;
     const expected = this.currentExpectedMove();
     const showHint = this.viewPly === null
       && !this.lineFinished
@@ -81,7 +81,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
 
     if (this.practiceCaughtUp) return;
 
-    if (this.isLearnResponseLesson()) {
+    if (this.sessionRoute?.kind === 'response') {
       const advice = this.responseAdvice();
       if (!advice) return;
       const text = document.createElement('span');
