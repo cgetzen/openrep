@@ -2,6 +2,7 @@ const STORAGE_PREFIX = 'openrep:v1:';
 
 export const RECENT_ATTEMPT_LIMIT = 5;
 export const MAX_ATTEMPT_MISTAKES = 3;
+export const SPACING_INTERVAL_DAYS = Object.freeze([1, 3, 7, 14, 30, 60]);
 
 function normalizeMistakeCount(value) {
   const numeric = Number.isFinite(value) ? Math.floor(value) : 0;
@@ -15,9 +16,47 @@ export function recentLineAttempts(progress) {
     .slice(-RECENT_ATTEMPT_LIMIT);
 }
 
-export function recordLineAttempt(progress, mistakes) {
+export function lineSpacingStage(progress) {
+  if (Number.isInteger(progress?.spacingStage)) {
+    return Math.max(-1, Math.min(SPACING_INTERVAL_DAYS.length - 1, progress.spacingStage));
+  }
+
+  const legacyInterval = Number(progress?.intervalDays);
+  if (!Number.isFinite(legacyInterval) || legacyInterval <= 0) return -1;
+
+  let stage = 0;
+  for (let index = 1; index < SPACING_INTERVAL_DAYS.length; index += 1) {
+    if (legacyInterval < SPACING_INTERVAL_DAYS[index]) break;
+    stage = index;
+  }
+  return stage;
+}
+
+export function scheduleLineAttempt(progress, mistakes, now = Date.now()) {
+  const current = progress ?? {};
+  const severity = normalizeMistakeCount(mistakes);
+  const currentStage = lineSpacingStage(current);
+  const lastStage = SPACING_INTERVAL_DAYS.length - 1;
+
+  let spacingStage;
+  if (severity === 0) spacingStage = Math.min(lastStage, currentStage + 1);
+  else if (severity >= MAX_ATTEMPT_MISTAKES) spacingStage = 0;
+  else spacingStage = Math.max(0, currentStage - severity);
+
+  const intervalDays = SPACING_INTERVAL_DAYS[spacingStage];
   return {
-    ...(progress ?? {}),
+    ...current,
+    spacingStage,
+    intervalDays,
+    dueAt: now + intervalDays * 24 * 60 * 60 * 1000,
+    completions: (current.completions ?? 0) + 1
+  };
+}
+
+export function recordLineAttempt(progress, mistakes, now = Date.now()) {
+  const scheduled = scheduleLineAttempt(progress, mistakes, now);
+  return {
+    ...scheduled,
     recentAttempts: [
       ...recentLineAttempts(progress),
       normalizeMistakeCount(mistakes)
@@ -56,6 +95,7 @@ export function defaultLineProgress(now = Date.now()) {
     dueAt: now,
     mistakes: 0,
     completions: 0,
+    spacingStage: -1,
     recentAttempts: []
   };
 }
@@ -81,6 +121,9 @@ export function normalizeCourseProgress(raw = {}) {
   };
 }
 
+// Legacy manual-grading scheduler retained only to read old progress/tests during
+// migration. The product no longer calls this path; completed attempts are
+// scheduled automatically by recordLineAttempt().
 export function scheduleReview(current, grade, now = Date.now()) {
   const next = { ...current, lastGrade: grade, completions: current.completions + 1 };
   if (grade === 'again') {
