@@ -13,12 +13,11 @@ function stableMoveSort(a, b) {
   return countDelta || a.move.localeCompare(b.move);
 }
 
-function tierForCumulative(cumulativePercent, thresholds) {
-  const [core, important, sideline] = thresholds;
-  if (cumulativePercent <= core) return 'core';
-  if (cumulativePercent <= important) return 'important';
-  if (cumulativePercent <= sideline) return 'sideline';
-  return 'on-demand';
+function curriculumTierForMove(move, coverage, thresholds) {
+  const [coreThreshold, , practicalThreshold] = thresholds;
+  if (coverage[String(coreThreshold)]?.includes(move)) return 'core';
+  if (coverage[String(practicalThreshold)]?.includes(move)) return 'important';
+  return 'sideline';
 }
 
 export function rankObservedMoves(observedMoves, totalGames = null) {
@@ -67,6 +66,7 @@ export function coverageForThresholds(rankedMoves, thresholds = DEFAULT_THRESHOL
 function compileDecision(decision, thresholds) {
   assert(decision?.id, 'Decision must have a stable id');
   assert(decision?.anchor?.lineId && Number.isInteger(decision?.anchor?.ply), `Decision ${decision?.id ?? 'unknown'} needs an authoring anchor`);
+  assert(typeof decision?.positionKey === 'string' && decision.positionKey.length > 0, `Decision ${decision.id} needs a canonical positionKey`);
 
   const rankedMoves = rankObservedMoves(decision.observedMoves, decision.totalGames ?? null);
   const coverage = coverageForThresholds(rankedMoves, thresholds);
@@ -81,7 +81,7 @@ function compileDecision(decision, thresholds) {
     const response = responseByOpponentMove.get(entry.move) ?? null;
     return Object.freeze({
       ...entry,
-      tier: tierForCumulative(entry.cumulativePercent, thresholds),
+      tier: curriculumTierForMove(entry.move, coverage, thresholds),
       response: response ? Object.freeze({ ...response }) : null
     });
   });
@@ -89,6 +89,7 @@ function compileDecision(decision, thresholds) {
   return Object.freeze({
     id: decision.id,
     anchor: Object.freeze({ ...decision.anchor }),
+    positionKey: decision.positionKey,
     totalGames: decision.totalGames ?? rankedMoves.reduce((sum, entry) => sum + entry.games, 0),
     source: decision.source ?? null,
     moves: Object.freeze(moves),
@@ -114,8 +115,11 @@ export function compileRepertoireSnapshot(snapshot) {
   const terminalAlternatives = Object.freeze(Object.fromEntries(
     (snapshot.terminalAlternatives ?? []).map(entry => {
       assert(entry?.decisionId, 'Terminal alternative requires decisionId');
+      assert(entry?.anchor?.lineId && Number.isInteger(entry?.anchor?.ply), `Terminal alternative ${entry?.decisionId ?? 'unknown'} needs an authoring anchor`);
       assert(Array.isArray(entry.acceptedMoves) && entry.acceptedMoves.length > 0, `Terminal alternative ${entry.decisionId} needs acceptedMoves`);
       return [entry.decisionId, Object.freeze({
+        anchor: Object.freeze({ ...entry.anchor }),
+        cue: entry.cue ?? '',
         acceptedMoves: Object.freeze([...entry.acceptedMoves]),
         rationaleByMove: Object.freeze({ ...(entry.rationaleByMove ?? {}) }),
         evidence: Object.freeze({ ...(entry.evidence ?? {}) })
