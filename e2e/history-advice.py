@@ -144,24 +144,25 @@ def assert_teaching_context_moves_atomically(page):
     assert e5_advice != d4_advice
     assert e5_options != d4_options
 
-    # Rewinding over Black's ...d5 must keep the whole teaching context on 2.d4.
+    # Removing White's e5 crosses a decision boundary, so both surfaces return to the 2.d4 decision.
     page.locator('#history-back').click()
     expect(page.locator('#history-status')).to_have_text('Position 4 / 5')
     expect(prompt).to_have_text(d4_advice)
     assert opponent_moves(panel) == d4_options
 
-    # Rewinding over White's 2.d4 is where advice and alternatives change together.
+    # Removing Black's ...d5 does not cross a decision boundary; both surfaces stay on 2.d4.
     page.locator('#history-back').click()
     expect(page.locator('#history-status')).to_have_text('Position 3 / 5')
     expect(prompt).to_have_text(d4_advice)
     assert opponent_moves(panel) == d4_options
 
+    # Removing White's 2.d4 crosses the next decision boundary; both surfaces change together.
     page.locator('#history-back').click()
     expect(page.locator('#history-status')).to_have_text('Position 2 / 5')
     expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
     expect(panel).to_be_hidden()
 
-    # Forward navigation has the same atomic boundary: Black moves do not advance teaching context.
+    # Forward navigation has the same atomic boundaries: Black moves never advance teaching context.
     page.locator('#history-forward').click()
     expect(prompt).to_have_text(d4_advice)
     expect(panel).to_be_visible()
