@@ -7,6 +7,8 @@ import {
   buildCurriculumCourse,
   curriculumConceptsForMember,
   curriculumLineOrder,
+  curriculumTeachingUnitPresentation,
+  primaryCurriculumFamilyForMember,
   validateCurriculum
 } from '../src/curriculum.js';
 import { normalizePositionKey, RepertoireMoveIndex } from '../src/repertoire-moves.js';
@@ -53,6 +55,36 @@ test('primary families are exclusive while concepts can overlap across teaching 
 
   const acceleratedConcepts = curriculumConceptsForMember(caroKannCurriculum, 'response', 'accelerated-panov-c4').map(concept => concept.id);
   assert.deepEqual(acceleratedConcepts.sort(), ['central-counterplay', 'exchange-structures', 'iqp-play']);
+});
+
+test('response teaching-unit presentation is canonical and independent of its owner line route', () => {
+  const acceleratedFamily = primaryCurriculumFamilyForMember(
+    caroKannCurriculum,
+    'response',
+    'accelerated-panov-c4'
+  );
+  assert.equal(acceleratedFamily.id, 'accelerated-panov');
+
+  const accelerated = curriculumTeachingUnitPresentation(
+    caroKannCurriculum,
+    'response',
+    'accelerated-panov-c4',
+    '2.c4 Accelerated Panov'
+  );
+  assert.equal(accelerated.teachingUnitId, 'response:accelerated-panov-c4');
+  assert.equal(accelerated.title, '2.c4 — Accelerated Panov');
+  assert.equal(accelerated.meta, 'Important · Top-level opponent decision');
+  assert.equal(accelerated.standaloneResponseFamily, true);
+
+  const nd2 = curriculumTeachingUnitPresentation(
+    caroKannCurriculum,
+    'response',
+    'classical-nd2-transposition',
+    '3.Nd2 transposition'
+  );
+  assert.equal(nd2.title, '3.Nd2 transposition');
+  assert.equal(nd2.familyId, 'classical');
+  assert.equal(nd2.standaloneResponseFamily, false);
 });
 
 test('generic curriculum validation is not tied to a Caro-Kann course', () => {
