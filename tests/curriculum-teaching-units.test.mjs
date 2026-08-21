@@ -16,13 +16,13 @@ function buildCourse() {
 test('curriculum sequence contains first-class line and response teaching units', () => {
   const course = buildCourse();
   const units = curriculumTeachingUnits(course, caroKannCurriculum);
-  const acceleratedIndex = units.findIndex(unit => unit.kind === 'response' && unit.id === 'accelerated-panov-c4');
+  const acceleratedIndex = units.findIndex(unit => unit.kind === 'line' && unit.id === 'accelerated-panov');
 
   assert.ok(acceleratedIndex > 0);
   assert.deepEqual(units[acceleratedIndex], {
-    teachingUnitId: 'response:accelerated-panov-c4',
-    kind: 'response',
-    id: 'accelerated-panov-c4',
+    teachingUnitId: 'line:accelerated-panov',
+    kind: 'line',
+    id: 'accelerated-panov',
     familyId: 'accelerated-panov'
   });
   assert.deepEqual(units[acceleratedIndex + 1], {
@@ -39,5 +39,6 @@ test('curriculum teaching-unit identity is unique across the ordered Learn seque
   const ids = units.map(unit => unit.teachingUnitId);
   assert.equal(ids.length, new Set(ids).size);
   assert.ok(ids.includes('line:advance-early-c5'));
+  assert.ok(ids.includes('line:accelerated-panov'));
   assert.ok(ids.includes('response:classical-nd2-transposition'));
 });
