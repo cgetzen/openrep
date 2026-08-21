@@ -9,6 +9,7 @@ import { caroKannResponses } from '../src/openings/caro-kann-responses.js';
 import {
   buildCaroKannCurriculumCourse,
   caroKannCurriculum,
+  curriculumLineOrder,
   validateCaroKannCurriculum
 } from '../src/openings/caro-kann-curriculum.js';
 
@@ -25,16 +26,17 @@ function positionAfter(moves) {
   return normalizePositionKey(miniChessToFen(chess));
 }
 
-test('curriculum classifies every stable line exactly once and starts with the primary Advance system', () => {
+test('curriculum classifies every stable line exactly once while keeping stored line identity/order unchanged', () => {
   const course = buildCourse();
   assert.equal(validateCaroKannCurriculum(course, caroKannCurriculum), true);
   assert.deepEqual(
-    new Set(course.lines.map(line => line.id)),
-    new Set(caroKann.lines.map(line => line.id))
+    course.lines.map(line => line.id),
+    caroKann.lines.map(line => line.id)
   );
   assert.equal(course.lines.length, caroKann.lines.length);
-  assert.equal(course.lines[0].id, 'advance-early-c5');
-  assert.equal(course.lines[0].title, 'Advance — ...c5 main system');
+
+  const recommendedOrder = curriculumLineOrder(course.lines, caroKannCurriculum);
+  assert.equal(recommendedOrder[0].id, 'advance-early-c5');
 
   const assigned = caroKannCurriculum.families.flatMap(family => family.lineIds ?? []);
   assert.equal(assigned.length, caroKann.lines.length);
