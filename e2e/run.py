@@ -276,10 +276,12 @@ def run():
             page.get_by_role('button', name='Reset local progress').click()
             expect(page.locator('#course-progress')).to_contain_text('0/13')
             lines = get_course_lines(page, injected)
+            wait_for_last_move(page, lines[0]['moves'][0])
             for index, line in enumerate(lines):
                 print(f'ui line {index+1}/{len(lines)}: {line["title"]}', flush=True)
-                page.locator(f'[data-line-index="{index}"]').click()
+                page.locator('#line-list [data-line-index]').filter(has_text=line['title']).click()
                 expect(page.locator('#line-title')).to_have_text(line['title'])
+                wait_for_last_move(page, line['moves'][0])
                 for ply in range(1, len(line['moves']), 2):
                     expect_decision_prompt(page)
                     click_move(page, line['moves'][ply])
