@@ -35,6 +35,37 @@ function chessAt(moves, ply) {
   return chess;
 }
 
+function historicalReplayHarness({ mode = 'learn', viewPly = 1, ply = 5 } = {}) {
+  const moves = ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5'];
+  const calls = [];
+  const app = Object.create(OpenRepTrainerApp.prototype);
+  Object.assign(app, {
+    mode,
+    viewPly,
+    ply,
+    practiceCaughtUp: false,
+    lineFinished: true,
+    mistakesThisLine: 3,
+    hintEnabled: true,
+    completedTerminalMove: null,
+    course: { side: 'b' },
+    sessionRoute: { kind: 'canonical', moves, notes: {} },
+    positionAtPly(targetPly) {
+      return { chess: chessAt(moves, targetPly), lastOpponentMove: null };
+    },
+    board: {
+      clearSelection() { calls.push('clearSelection'); },
+      setPosition(_chess, options) { calls.push(['setPosition', options]); },
+      setExpectedMove(move, showHint) { calls.push(['setExpectedMove', move, showHint]); }
+    },
+    refreshEvaluation() { calls.push('evaluation'); },
+    refreshHistoryView() { calls.push('refreshHistoryView'); },
+    queueHistoricalOpponentReplay() { calls.push('queueHistoricalOpponentReplay'); }
+  });
+  app.calls = calls;
+  return app;
+}
+
 test('history navigation uses the history projection instead of full refresh', () => {
   const app = historyHarness({ ply: 4 });
 
@@ -195,6 +226,79 @@ test('opponent alternatives consume the same decision context as advice', () => 
   assert.deepEqual(optionsAt(5), [{ ply: 4 }]);
   assert.deepEqual(optionsAt(2), [{ ply: 0 }]);
   assert.deepEqual(requested, [2, 2, 4, 0]);
+});
+
+test('historical board is interactive only on a replayable repertoire decision', () => {
+  const app = historicalReplayHarness({ viewPly: 1, ply: 5 });
+
+  app.refreshBoardState();
+  assert.deepEqual(app.calls, [
+    ['setPosition', { lastMove: null, interactive: true }],
+    ['setExpectedMove', 'c7c6', true],
+    'evaluation'
+  ]);
+
+  app.calls.length = 0;
+  app.viewPly = 2;
+  app.refreshBoardState();
+  assert.deepEqual(app.calls, [
+    ['setPosition', { lastMove: null, interactive: false }],
+    ['setExpectedMove', null, false],
+    'evaluation'
+  ]);
+});
+
+test('replaying a historical move advances projection without changing live session state in Learn or Practice', () => {
+  for (const mode of ['learn', 'practice']) {
+    const app = historicalReplayHarness({ mode, viewPly: 1, ply: 5 });
+    const originalRoute = app.sessionRoute;
+
+    app.replayHistoricalMove('c7', 'c6');
+
+    assert.equal(app.viewPly, 2, `${mode}: projection advances one ply`);
+    assert.equal(app.ply, 5, `${mode}: live ply stays fixed`);
+    assert.equal(app.lineFinished, true, `${mode}: completion state stays fixed`);
+    assert.equal(app.mistakesThisLine, 3, `${mode}: mistake state stays fixed`);
+    assert.equal(app.sessionRoute, originalRoute, `${mode}: route identity stays fixed`);
+    assert.deepEqual(app.calls, [
+      'clearSelection',
+      'refreshHistoryView',
+      'queueHistoricalOpponentReplay'
+    ]);
+  }
+});
+
+test('wrong historical replay move gives feedback without recording a training mistake', () => {
+  const app = historicalReplayHarness({ mode: 'practice', viewPly: 1, ply: 5 });
+  const liveFeedback = { hidden: false };
+  const historyFeedback = {
+    hidden: true,
+    className: '',
+    textContent: '',
+    setAttribute(name, value) { this[name] = value; }
+  };
+  app.root = {
+    querySelector(selector) {
+      if (selector === '#feedback') return liveFeedback;
+      if (selector === '#history-feedback') return historyFeedback;
+      return null;
+    }
+  };
+  app.recordTrainingMistake = () => {
+    throw new Error('historical replay must not record a live training mistake');
+  };
+  app.refreshBoardState = () => app.calls.push('refreshBoardState');
+
+  app.replayHistoricalMove('g8', 'f6');
+
+  assert.equal(app.viewPly, 1);
+  assert.equal(app.ply, 5);
+  assert.equal(app.mistakesThisLine, 3);
+  assert.equal(liveFeedback.hidden, true);
+  assert.equal(historyFeedback.hidden, false);
+  assert.equal(historyFeedback.className, 'feedback wrong');
+  assert.equal(historyFeedback.textContent, 'Not in the repertoire. Try again.');
+  assert.deepEqual(app.calls, ['clearSelection', 'refreshBoardState']);
 });
 
 test('history navigation does nothing when already at the requested boundary', () => {

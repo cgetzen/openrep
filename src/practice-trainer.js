@@ -82,6 +82,97 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     this.branchTeaching = new BranchTeachingIndex(course);
   }
 
+  historicalReplayContext() {
+    if (this.viewPly === null || this.practiceCaughtUp) return null;
+
+    const { chess, lastOpponentMove } = this.positionAtPly(this.viewPly);
+    const expected = chess.turn() === this.course.side ? this.moveAtPly(this.viewPly) : null;
+    const interactive = Boolean(
+      expected
+      && this.viewPly < this.ply
+      && chess.turn() === this.course.side
+    );
+
+    return { chess, lastOpponentMove, expected, interactive };
+  }
+
+  refreshBoardState() {
+    if (this.viewPly === null) {
+      super.refreshBoardState();
+      return;
+    }
+
+    const replay = this.historicalReplayContext();
+    if (!replay) {
+      super.refreshBoardState();
+      return;
+    }
+
+    this.board.setPosition(replay.chess, {
+      lastMove: replay.lastOpponentMove,
+      interactive: replay.interactive
+    });
+    this.board.setExpectedMove(replay.expected, replay.interactive && this.hintEnabled);
+    this.refreshEvaluation(replay.chess);
+  }
+
+  showHistoricalReplayFeedback(message, kind) {
+    const liveFeedback = this.root.querySelector('#feedback');
+    const historyFeedback = this.root.querySelector('#history-feedback');
+    if (liveFeedback) liveFeedback.hidden = true;
+    if (!historyFeedback) return;
+
+    historyFeedback.hidden = false;
+    historyFeedback.className = `feedback ${kind}`;
+    historyFeedback.textContent = message;
+    historyFeedback.setAttribute('aria-hidden', 'false');
+  }
+
+  replayHistoricalMove(from, to) {
+    const replay = this.historicalReplayContext();
+    if (!replay?.interactive) return;
+
+    const attempted = `${from}${to}`;
+    if (!replay.expected?.startsWith(attempted)) {
+      const expectedNotation = replay.expected ? replay.chess.notationFor(replay.expected) : '';
+      const message = this.mode === 'learn' && expectedNotation
+        ? `Not quite. Look for ${expectedNotation}.`
+        : 'Not in the repertoire. Try again.';
+      this.board.clearSelection();
+      this.showHistoricalReplayFeedback(message, 'wrong');
+      this.refreshBoardState();
+      return;
+    }
+
+    const nextPly = this.viewPly + 1;
+    this.viewPly = nextPly === this.ply ? null : nextPly;
+    this.board.clearSelection();
+    this.refreshHistoryView();
+    this.queueHistoricalOpponentReplay();
+  }
+
+  queueHistoricalOpponentReplay() {
+    if (this.viewPly === null) return;
+
+    const replayPly = this.viewPly;
+    const { chess } = this.positionAtPly(replayPly);
+    if (chess.turn() === this.course.side) return;
+
+    window.setTimeout(() => {
+      if (this.viewPly !== replayPly) return;
+      this.navigateHistory(1);
+      this.queueHistoricalOpponentReplay();
+    }, 130);
+  }
+
+  onUserMove(from, to) {
+    if (this.viewPly === null) {
+      super.onUserMove(from, to);
+      return;
+    }
+    this.replayHistoricalMove(from, to);
+  }
+
   renderShell() {
     super.renderShell();
     const liveFeedback = this.root.querySelector('#feedback');

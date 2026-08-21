@@ -18,6 +18,8 @@ jobs:
           python-version: '3.13'
       - run: python -m pip install -r e2e/requirements.txt
       - run: python -m playwright install --with-deps chromium
+      - name: Fetch Stockfish 18 browser engine
+        run: bash scripts/fetch-stockfish.sh
       - run: npm test
       - run: npm run test:e2e
 

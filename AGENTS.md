@@ -78,6 +78,17 @@ History navigation changes the viewed chess position without changing the underl
 - History navigation must use an explicit projection path rather than the full trainer `refresh()`. New position-context UI must opt into that projection path.
 - Regression coverage must verify multiple right-panel surfaces at multiple plies, including a case where historical move feedback changes from one repertoire move to an earlier one and a case where all decision-context teaching surfaces cross the same ply boundary atomically.
 
+### Position-equivalent attempt invariant
+
+A move attempt is a function of the displayed chess/decision state, not of the navigation path used to reach that state. If the user reaches the same repertoire decision position and tries the same move, the teaching result must be identical.
+
+- `1 → 2 → X` and `1 → 2 → 3 → 2 → X` must produce the same move classification, score difference, explanation language, repertoire-match language, and teaching arrow for `X`.
+- Live and historical attempts must execute the same classification/evaluation/feedback pipeline against an explicit position context. Do not maintain a simplified history-only wrong-move copy path.
+- The permitted difference is session mutation: a historical attempt may suppress progress, scheduling, grading, completion, and mistake-count mutations while preserving the exact learner-facing result.
+- Engine evaluation must evaluate the displayed position and attempted move, not the current live position hidden behind history navigation.
+- Any future move-feedback surface added to the live attempt pipeline must automatically apply to equivalent historical attempts; requiring a separate history implementation is an architectural regression.
+- Regression coverage must compare equivalent live and rewound attempts and assert learner-facing parity as well as non-mutation of session-owned state.
+
 ## 4. Architecture invariants
 
 OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
