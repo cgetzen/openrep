@@ -10,15 +10,18 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     super.renderShell();
     const map = this.root.querySelector('.course-map');
     const heading = map?.querySelector('.section-heading');
+    const presentation = this.course.curriculum?.presentation ?? {};
     const eyebrow = heading?.querySelector('.eyebrow');
     const title = heading?.querySelector('h2');
-    if (eyebrow) eyebrow.textContent = 'Curriculum map';
-    if (title) title.textContent = 'Coverage-driven repertoire';
+    if (eyebrow) eyebrow.textContent = presentation.eyebrow ?? 'Curriculum map';
+    if (title) title.textContent = presentation.title ?? 'Course curriculum';
 
-    const summary = document.createElement('p');
-    summary.className = 'curriculum-map-summary';
-    summary.textContent = 'Core first, then common coverage gaps. Rare sidelines and alternative repertoire systems stay available without crowding the primary path.';
-    heading?.querySelector('div')?.append(summary);
+    if (presentation.summary) {
+      const summary = document.createElement('p');
+      summary.className = 'curriculum-map-summary';
+      summary.textContent = presentation.summary;
+      heading?.querySelector('div')?.append(summary);
+    }
   }
 
   curriculumResponseRoute(responseId) {
@@ -184,9 +187,13 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
         const teaching = document.createElement('div');
         teaching.className = 'curriculum-teaching';
         const recognition = document.createElement('p');
-        recognition.innerHTML = `<strong>Recognize:</strong> ${family.recognition}`;
+        const recognitionLabel = document.createElement('strong');
+        recognitionLabel.textContent = 'Recognize: ';
+        recognition.append(recognitionLabel, document.createTextNode(family.recognition ?? ''));
         const plan = document.createElement('p');
-        plan.innerHTML = `<strong>Plan:</strong> ${family.plan}`;
+        const planLabel = document.createElement('strong');
+        planLabel.textContent = 'Plan: ';
+        plan.append(planLabel, document.createTextNode(family.plan ?? ''));
         teaching.append(recognition, plan);
         familyCard.append(teaching);
 
