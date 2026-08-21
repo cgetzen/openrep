@@ -1,3 +1,11 @@
+import { generatedResponsesForDecision } from '../generated-repertoire.js';
+import { caroKannGeneratedRepertoire } from './generated/caro-kann.generated.js';
+
+const generatedTwoKnightsResponses = generatedResponsesForDecision(
+  caroKannGeneratedRepertoire,
+  'two-knights-after-d5'
+);
+
 export const caroKannResponses = [
   {
     id: 'advance-quiet-be2',
@@ -110,5 +118,6 @@ export const caroKannResponses = [
     label: 'Solid c3 setup',
     idea: 'White supports d4 with c3 instead of developing immediately. Keep the same active Exchange plan and develop toward d4 rather than mirroring passively.',
     responseNote: 'Nc6 develops with pressure on d4 and keeps Black ready for Nf6 and active piece play.'
-  }
+  },
+  ...generatedTwoKnightsResponses
 ];
