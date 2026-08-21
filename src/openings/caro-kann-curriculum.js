@@ -162,17 +162,7 @@ export const caroKannCurriculum = {
         detail: 'The existing Nf3, h4, and Nc3 leaves cover only about 70% of sampled replies after 3...Bf5, so this stays available without defining the core curriculum.'
       }
     }
-  ],
-  lineOverrides: {
-    'advance-early-c5': {
-      title: 'Advance — ...c5 main system',
-      summary: 'Challenge d4 immediately and force White to define the center before you commit the light bishop.'
-    },
-    'advance-main': {
-      title: 'Advance — ...Bf5 main setup',
-      summary: 'Alternative system: develop the light bishop outside the pawn chain, then attack White’s center with ...c5.'
-    }
-  }
+  ]
 };
 
 export function orderedCurriculumFamilies(curriculum = caroKannCurriculum) {
@@ -240,10 +230,9 @@ export function validateCaroKannCurriculum(course, curriculum = caroKannCurricul
 
 export function buildCaroKannCurriculumCourse(course, curriculum = caroKannCurriculum) {
   validateCaroKannCurriculum(course, curriculum);
-  const overrides = curriculum?.lineOverrides ?? {};
-  const lines = curriculumLineOrder(course.lines, curriculum).map(line => ({
-    ...line,
-    ...(overrides[line.id] ?? {})
-  }));
-  return { ...course, lines, curriculum };
+  return {
+    ...course,
+    lines: [...(course.lines ?? [])],
+    curriculum
+  };
 }
