@@ -114,6 +114,16 @@ const caroKannDecisionCues = {
     9: 'Develop actively by using the f3-knight as a target.',
     11: 'Reinforce the center and open the dark bishop while maintaining pressure.',
     13: 'Keep development flexible and support ...Nf5 without blocking the f-pawn.'
+  },
+  'accelerated-panov': {
+    1: cue.caroStart,
+    3: 'White has challenged the center immediately with c4. Meet it directly with d5.',
+    5: 'Restore the central pawn with the c-pawn and keep the position open for active piece play.',
+    7: 'Do not expose the queen to a developing tempo. Develop Nf6 and attack the temporary d5-pawn first.',
+    9: 'The knight is developed and the pawn is still isolated. Recover d5 now without losing time.',
+    11: 'Simplify White’s most active queenside piece before completing development.',
+    13: 'The d-file has opened. Trade queens to remove White’s remaining initiative.',
+    15: 'Finish natural development after the central liquidation; Black has equal material and an easy game.'
   }
 };
 
@@ -129,7 +139,8 @@ const completionRationale = {
   'hillbilly': 'Develops the light-squared bishop actively before ...e6, using the time White spent on the early bishop sortie.',
   'quiet-d3': 'Completes development and secures the king after Black has comfortably claimed central space.',
   'early-nf3': 'Develops the light-squared bishop outside the pawn chain before ...e6 while keeping the bishop flexible.',
-  'advance-early-c5': 'Develops toward f5 or g6 while keeping the f-pawn free, reinforcing the flexible pressure created by the early ...c5 setup.'
+  'advance-early-c5': 'Develops toward f5 or g6 while keeping the f-pawn free, reinforcing the flexible pressure created by the early ...c5 setup.',
+  'accelerated-panov': 'Develops the last queenside minor piece after the tactical liquidation, leaving Black with equal material and no exposed queen to target.'
 };
 
 export const caroKannMoveTheory = caroKann.lines.flatMap(line => {
@@ -217,5 +228,10 @@ export const caroKannLessonDecisions = [
     id: 'advance-early-c5-completion',
     anchor: { lineId: 'advance-early-c5', ply: 13 },
     objective: 'Challenge d4 immediately with ...c5 and build pressure without first committing to ...Bf5.'
+  },
+  {
+    id: 'accelerated-panov-completion',
+    anchor: { lineId: 'accelerated-panov', ply: 15 },
+    objective: 'Meet c4 with ...d5, recover the temporary d5-pawn through development, and simplify without giving White tempi on the queen.'
   }
 ];
