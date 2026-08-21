@@ -257,6 +257,14 @@ The three questions must remain independent:
 2. **How did the learner enter it?** — lesson-session context (`origin`, `startPly`, optional parent, navigation behavior).
 3. **How is the chess position reconstructed/executed?** — the route and its `divergencePly`, owner line, and move sequence.
 
+### Branch versus response modeling
+
+A `Response` is deliberately narrow: it represents one canonical opponent decision `(position, opponent move)` and the repertoire answer to that decision. Optional continuation can illustrate what the answer leads to, but it should not silently turn the response into a multi-decision lesson.
+
+If the learner needs to make several later repertoire decisions before the teaching objective is complete, model that material as a `Line` and let the curriculum family place that line at the appropriate tier. The Accelerated Panov is the concrete example that exposed this boundary: `2.c4` is not merely “remember d5”; Black also needs to understand the central liquidation, `Nf6`, `Nxd5`, and the resulting simplification.
+
+This distinction is about instructional granularity, not chess identity. Position identity remains normalized chess state, and full-line coverage continues to take precedence over a standalone response for the same opponent move. A future generator should promote an explored response subtree to line/branch content when its selected teaching horizon contains multiple repertoire-side decisions.
+
 ### Session invariants
 
 - `responseId` identifies a response teaching unit; `lineId` identifies a line teaching unit.
@@ -269,7 +277,7 @@ The three questions must remain independent:
 - Curriculum Learn navigation is an ordered sequence of teaching units, not an index over `course.lines`. First-class response lessons participate in Previous/Next just like full-line lessons.
 - A route may still use a teaching-owner line to reconstruct prefix moves. That owner is hidden execution context and must not become current-item highlighting, lesson navigation, or learner-facing identity.
 
-### Example: Accelerated Panov
+### Example: 3.Nd2 transposition response
 
 ```mermaid
 sequenceDiagram
@@ -278,14 +286,16 @@ sequenceDiagram
   participant S as Lesson session
   participant R as Response route
 
-  U->>C: Select 2.c4 — Accelerated Panov
-  C->>S: response:accelerated-panov-c4\norigin=curriculum, startPly=0, parent=null
+  U->>C: Select 3.Nd2 transposition
+  C->>S: response:classical-nd2-transposition\norigin=curriculum, startPly=0, parent=null
   S->>R: Execute route from root
   R-->>U: 1.e4
   U->>R: c6
-  R-->>U: 2.c4
+  R-->>U: 2.d4
   U->>R: d5
-  S-->>U: Lesson complete → Next lesson
+  R-->>U: 3.Nd2
+  U->>R: dxe4
+  S-->>U: Response learned → Next lesson
 ```
 
 The same response opened from an in-line opponent-alternative panel can use `startPly = divergencePly` and show `Return to lesson` after completion because that session has an explicit parent. The teaching-unit title and progress identity remain the same.
