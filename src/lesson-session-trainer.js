@@ -1,4 +1,5 @@
 import { AutomaticSpacedTrainerApp } from './automatic-spaced-trainer.js?v=history-attempt-parity-v3';
+import { loadProgress, resetProgress } from './progress.js';
 import { createLessonSession, hasParentLesson, responseSessionStartPly } from './lesson-session.js?v=lesson-session-v1';
 
 export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
@@ -22,6 +23,20 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
       const previous = oldPrevious.cloneNode(true);
       oldPrevious.replaceWith(previous);
       previous.addEventListener('click', () => this.navigateLesson(-1));
+    }
+
+    // Reset is progress-owned, but what restarts afterward is a teaching unit, not
+    // necessarily a full line. Remove the lineIndex-based base listener.
+    const oldReset = this.root.querySelector('#reset-progress');
+    if (oldReset) {
+      const reset = oldReset.cloneNode(true);
+      oldReset.replaceWith(reset);
+      reset.addEventListener('click', () => {
+        resetProgress(this.course.id);
+        this.progress = loadProgress(this.course.id);
+        if (this.mode === 'practice') this.startPracticeQueue();
+        else this.restartCurrentTeachingUnit();
+      });
     }
   }
 
@@ -52,6 +67,38 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
       teachingUnit: { kind: 'line', id: line.id },
       origin: this.mode === 'practice' ? 'practice' : 'line',
       startPly: 0
+    });
+  }
+
+  setMode(mode) {
+    if (!['learn', 'practice'].includes(mode)) return;
+    if (mode === this.mode) {
+      this.refresh();
+      return;
+    }
+
+    this.mode = mode;
+    if (mode === 'practice') {
+      this.startPracticeQueue();
+      return;
+    }
+    this.startLine(this.lineIndex);
+  }
+
+  restartCurrentTeachingUnit() {
+    const session = this.lessonSession;
+    if (!session || session.teachingUnit.kind === 'line') {
+      this.startLine(this.lineIndex);
+      return;
+    }
+
+    this.beginLessonSession({
+      lineIndex: this.lineIndex,
+      route: this.sessionRoute,
+      teachingUnit: session.teachingUnit,
+      origin: session.origin,
+      startPly: session.startPly,
+      parent: session.parent
     });
   }
 
