@@ -52,7 +52,8 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
 
     const historyFeedback = document.createElement('div');
     historyFeedback.id = 'history-feedback';
-    historyFeedback.className = 'feedback hidden';
+    historyFeedback.className = 'feedback';
+    historyFeedback.hidden = true;
     historyFeedback.setAttribute('aria-hidden', 'true');
     liveFeedback.after(historyFeedback);
   }
@@ -221,22 +222,25 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     if (!liveFeedback || !historyFeedback) return;
 
     if (this.viewPly === null) {
-      liveFeedback.classList.remove('hidden');
-      historyFeedback.className = 'feedback hidden';
+      liveFeedback.hidden = false;
+      historyFeedback.hidden = true;
+      historyFeedback.className = 'feedback';
       historyFeedback.textContent = '';
       historyFeedback.setAttribute('aria-hidden', 'true');
       return;
     }
 
-    liveFeedback.classList.add('hidden');
+    liveFeedback.hidden = true;
     const feedback = this.displayedMoveFeedback();
     if (!feedback) {
-      historyFeedback.className = 'feedback hidden';
+      historyFeedback.hidden = true;
+      historyFeedback.className = 'feedback';
       historyFeedback.textContent = '';
       historyFeedback.setAttribute('aria-hidden', 'true');
       return;
     }
 
+    historyFeedback.hidden = false;
     historyFeedback.className = `feedback ${feedback.kind}`;
     historyFeedback.textContent = feedback.text;
     historyFeedback.setAttribute('aria-hidden', 'false');
