@@ -213,41 +213,79 @@ Examples:
 
 ## 7. Current module boundary
 
-- `src/curriculum.js`: opening-agnostic curriculum validation, ordering, course decoration, concept lookup, and canonical teaching-unit presentation.
-- `src/curriculum-trainer.js`: opening-agnostic rendering/interaction for a course that has curriculum metadata.
+- `src/curriculum.js`: opening-agnostic curriculum validation, ordering, course decoration, concept lookup, teaching-unit ordering, and canonical teaching-unit presentation.
+- `src/lesson-session.js`: opening-agnostic lesson-entry invariants: teaching unit, origin, start ply, and optional parent.
+- `src/lesson-session-trainer.js`: application/session layer that keeps teaching-unit identity, entry context, and route execution separate.
+- `src/curriculum-trainer.js`: opening-agnostic rendering/interaction for a course that has curriculum metadata and a teaching-unit Learn sequence.
 - `src/openings/*-curriculum.js`: opening-specific curriculum data and evidence snapshots.
 - `src/repertoire-moves.js`: runtime coverage/response index over shipped content.
 - future `content-generator/` (or equivalent): database adapters, engine analysis, expansion, coverage optimization, clustering, artifact emission.
 
-When adding another opening, reuse the generic curriculum modules; do not fork Caro-Kann-specific validator/builder/trainer logic.
+When adding another opening, reuse the generic curriculum/session modules; do not fork Caro-Kann-specific validator/builder/trainer logic.
 
-## 8. Teaching-unit presentation is separate from route execution
+## 8. Teaching-unit identity, lesson session, and route execution are separate
 
-A learner can reach the same response from several entry points: the curriculum map, an opponent-alternative panel, a completed-line response list, a transposed lesson, or future search/personalization UI. Those entry points may need different navigation behavior, but they must not invent different lesson identities for the same response.
+A learner can reach the same response from several entry points: the curriculum map, an opponent-alternative panel, a completed-line response list, a transposed lesson, or future search/personalization UI. Those entry points share teaching identity but can require different start and completion behavior.
 
 ```mermaid
 flowchart LR
   RESP["Stable responseId"] --> UNIT["Teaching unit\nresponse:<responseId>"]
-  FAMILY["Primary curriculum family"] --> PRESENT["Canonical lesson presentation\ntitle + tier + role"]
+  FAMILY["Primary curriculum family"] --> PRESENT["Canonical presentation\ntitle + tier + role"]
   UNIT --> PRESENT
 
-  MAP["Curriculum map"] --> UNIT
-  ALT["Opponent alternative"] --> UNIT
-  SUMMARY["Response summary"] --> UNIT
-  TRANS["Transposed lesson"] --> UNIT
+  MAP["Curriculum map"] --> ENTRY["Entry context"]
+  ALT["Opponent alternative"] --> ENTRY
+  SUMMARY["Response summary"] --> ENTRY
+  PRACTICE["Practice queue"] --> ENTRY
 
-  UNIT --> ROUTE["Session route\nexecution mechanics"]
+  UNIT --> SESSION["Lesson session"]
+  ENTRY --> SESSION
+  SESSION --> START["startPly"]
+  SESSION --> PARENT["optional parent session"]
+  SESSION --> NAV["next / return behavior"]
+
+  UNIT --> ROUTE["Route\nchess reconstruction + divergence"]
+  SESSION --> ROUTE
   ROUTE --> TRAIN["Board / move playback / progress"]
-  PRESENT --> UI["Learner-facing lesson header"]
+  PRESENT --> UI["Learner-facing lesson UI"]
   TRAIN --> UI
 ```
 
-### Invariants
+The three questions must remain independent:
 
-- `responseId` identifies the teaching unit; a route identifies how that unit is executed from a particular chess path.
-- `sessionRoute.kind`, `teachingOwnerLineId`, divergence ply, and the line used to reconstruct the position are execution/authoring mechanics. They must not define the learner-facing lesson title.
-- A response with a primary curriculum family resolves its title/tier/role through one opening-agnostic curriculum presentation function. Every entry path uses that same resolver.
-- A family containing no full lines and exactly one response is a standalone response family. The family title is the lesson title; the course map must not create a second differently named conceptual lesson underneath it. A child action may show the concrete move pair (for example `2.c4 → d5`) without introducing another identity.
-- A response inside a mixed family may use its response label as a child lesson title, while still deriving tier/family metadata through the same resolver.
-- Navigation path must not change the teaching-unit presentation. Reaching `response:X` from the curriculum map and reaching `response:X` from an opponent-alternative card must produce the same lesson title and metadata.
-- Regression tests should cover at least one standalone response family and assert that route-owner copy such as “from <owner line>” does not leak into the canonical lesson header.
+1. **What is being learned?** — the stable teaching unit (`line:<lineId>` or `response:<responseId>`).
+2. **How did the learner enter it?** — lesson-session context (`origin`, `startPly`, optional parent, navigation behavior).
+3. **How is the chess position reconstructed/executed?** — the route and its `divergencePly`, owner line, and move sequence.
+
+### Session invariants
+
+- `responseId` identifies a response teaching unit; `lineId` identifies a line teaching unit.
+- `sessionRoute.kind`, `teachingOwnerLineId`, authoring anchor, and `divergencePly` are route/authoring mechanics. They do not determine lesson identity, start position, or completion navigation.
+- A curriculum-map response is a **root lesson session**: `origin = curriculum`, `parent = null`, and `startPly = 0`. It begins from the course root even if its response route diverges later.
+- An opponent-alternative or completed-line response is an **embedded response session**: `origin = embedded-response`, it requires an explicit parent-session snapshot, and it may start at `divergencePly` because the learner already reached that context.
+- **Return to lesson exists if and only if an explicit parent session exists.** A response route by itself must never imply return behavior.
+- Restart uses the lesson session's `startPly`; it must not infer start position from route kind or `divergencePly`.
+- Returning from an embedded response restores the exact parent route/session state that was left, not merely the parent line's title or canonical route.
+- Curriculum Learn navigation is an ordered sequence of teaching units, not an index over `course.lines`. First-class response lessons participate in Previous/Next just like full-line lessons.
+- A route may still use a teaching-owner line to reconstruct prefix moves. That owner is hidden execution context and must not become current-item highlighting, lesson navigation, or learner-facing identity.
+
+### Example: Accelerated Panov
+
+```mermaid
+sequenceDiagram
+  participant U as Learner
+  participant C as Curriculum
+  participant S as Lesson session
+  participant R as Response route
+
+  U->>C: Select 2.c4 — Accelerated Panov
+  C->>S: response:accelerated-panov-c4\norigin=curriculum, startPly=0, parent=null
+  S->>R: Execute route from root
+  R-->>U: 1.e4
+  U->>R: c6
+  R-->>U: 2.c4
+  U->>R: d5
+  S-->>U: Lesson complete → Next lesson
+```
+
+The same response opened from an in-line opponent-alternative panel can use `startPly = divergencePly` and show `Return to lesson` after completion because that session has an explicit parent. The teaching-unit title and progress identity remain the same.
