@@ -175,7 +175,7 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
     super.renderPrompt(responseLesson);
   }
 
-  responseAdvice() {
+  renderDecisionPrompt() {
     const rootResponse = this.isLearnResponseLesson() && !this.hasParentLesson();
     const beforeResponseDecision = rootResponse
       && this.viewPly === null
@@ -183,11 +183,18 @@ export class LessonSessionTrainerApp extends AutomaticSpacedTrainerApp {
       && this.ply <= (this.sessionRoute?.divergencePly ?? 0)
       && this.chess.turn() === this.course.side;
 
-    if (!beforeResponseDecision) return super.responseAdvice();
+    if (!beforeResponseDecision) {
+      super.renderDecisionPrompt();
+      return;
+    }
 
+    const prompt = this.root.querySelector('#prompt');
     const expected = this.currentExpectedMove();
     const clue = this.hintEnabled && expected ? ` Find ${this.chess.notationFor(expected)}.` : '';
-    return `Build the position. Follow your repertoire to reach this lesson.${clue}`;
+    prompt.replaceChildren();
+    const advice = document.createElement('span');
+    advice.textContent = `Build the position. Follow your repertoire to reach this lesson.${clue}`;
+    prompt.append(advice);
   }
 
   refresh() {
