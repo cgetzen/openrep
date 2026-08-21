@@ -6,14 +6,12 @@ import json
 import os
 import re
 import threading
-from pathlib import Path
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import expect, sync_playwright
 
 from run import QuietHandler, click_move, get_course_lines, load_injected, restore_app
 
-ROOT = Path(__file__).resolve().parents[1]
 DAY = 24 * 60 * 60 * 1000
 
 
@@ -21,19 +19,6 @@ def course_id(page, injected: bool):
     if injected:
         return page.evaluate('window.__OpenRep.caroKann.id')
     return page.evaluate("async () => (await import('./src/openings/caro-kann.js')).caroKann.id")
-
-
-def enable_automatic_trainer_in_fallback(page):
-    source = (ROOT / 'src/automatic-spaced-trainer.js').read_text()
-    source = re.sub(r'^import .*?;\s*$', '', source, flags=re.MULTILINE)
-    source = re.sub(r'\bexport\s+(?=(?:const|let|var|class|function)\b)', '', source)
-    page.add_script_tag(content=source + """
-      document.querySelector('#app').replaceChildren();
-      window.__OpenRep.AutomaticSpacedTrainerApp = AutomaticSpacedTrainerApp;
-      new AutomaticSpacedTrainerApp(
-        document.querySelector('#app'), window.__OpenRep.caroKann
-      ).mount();
-    """)
 
 
 def run():
@@ -61,7 +46,6 @@ def run():
                 page.close()
                 page = context.new_page()
                 load_injected(page)
-                enable_automatic_trainer_in_fallback(page)
                 injected = True
 
             lines = get_course_lines(page, injected)
@@ -91,8 +75,6 @@ def run():
                 [storage_key, json.dumps(progress)],
             )
             restore_app(page, injected)
-            if injected:
-                enable_automatic_trainer_in_fallback(page)
 
             practice = page.get_by_role('button', name='Practice test your recall')
             practice.click()
@@ -129,10 +111,10 @@ def run():
             expect(prompt.locator('strong')).to_have_count(0)
             expect(prompt).not_to_contain_text('Complete')
             expect(page.locator('#grading')).to_be_hidden()
-            expect(page.get_by_role('button', name='Again')).to_be_hidden()
-            expect(page.get_by_role('button', name='Hard')).to_be_hidden()
-            expect(page.get_by_role('button', name='Good')).to_be_hidden()
-            expect(page.get_by_role('button', name='Easy')).to_be_hidden()
+            expect(page.get_by_role('button', name='Again')).to_have_count(0)
+            expect(page.get_by_role('button', name='Hard')).to_have_count(0)
+            expect(page.get_by_role('button', name='Good')).to_have_count(0)
+            expect(page.get_by_role('button', name='Easy')).to_have_count(0)
             expect(next_button).to_be_enabled()
             expect(next_button).to_have_text('Next review →')
 
