@@ -103,6 +103,7 @@ def run():
             response_summary.get_by_role('button', name='Learn response').click()
             expect(page.locator('#line-title')).to_have_text('Another good move: 4.Be2')
             expect(page.locator('#line-variation')).to_contain_text('New response')
+            wait_for_last_move(page, 'f1e2')
             expect_decision_prompt(page)
             expect(page.locator('#prompt')).not_to_contain_text('How should Black respond?')
 
