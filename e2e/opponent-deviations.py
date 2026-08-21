@@ -19,9 +19,16 @@ def expect_decision_prompt(page):
     expect(prompt).not_to_contain_text('Your move as Black')
 
 
+def wait_for_expected_move(page, move):
+    """Synchronize on an actionable repertoire decision, not advice visibility."""
+    expect(page.locator(f'.square.hint-from[data-square="{move[:2]}"]')).to_have_count(1)
+    expect(page.locator(f'.square.hint-to[data-square="{move[2:4]}"]')).to_have_count(1)
+    expect_decision_prompt(page)
+
+
 def play_black_moves(page, moves):
     for move, opponent_reply in moves:
-        expect_decision_prompt(page)
+        wait_for_expected_move(page, move)
         click_move(page, move)
         if opponent_reply:
             wait_for_last_move(page, opponent_reply)
@@ -104,7 +111,7 @@ def run():
             expect(page.locator('#line-title')).to_have_text('Another good move: 4.Be2')
             expect(page.locator('#line-variation')).to_contain_text('New response')
             wait_for_last_move(page, 'f1e2')
-            expect_decision_prompt(page)
+            wait_for_expected_move(page, 'e7e6')
             expect(page.locator('#prompt')).not_to_contain_text('How should Black respond?')
 
             # One correct repertoire response is enough to learn the response.
@@ -184,12 +191,12 @@ def run():
                 ('c8f5', 'f1e2'),
             ])
 
-            expect_decision_prompt(page)
+            wait_for_expected_move(page, 'e7e6')
             assert is_highlighted(page, 'e2')
 
             click_move(page, 'e7e6')
             wait_for_last_move(page, 'g1f3')
-            expect_decision_prompt(page)
+            wait_for_expected_move(page, 'c6c5')
             click_move(page, 'c6c5')
             expect_decision_prompt(page)
             expect(page.locator('#prompt')).not_to_contain_text('Complete')
