@@ -28,6 +28,12 @@ def open_line(page, index, first_move='e2e4'):
     wait_for_last_move(page, first_move)
 
 
+def opponent_moves(panel):
+    return panel.locator('[data-opponent-move]').evaluate_all(
+        '(elements) => elements.map(element => element.dataset.opponentMove)'
+    )
+
+
 def assert_history_shows_advice(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
@@ -122,23 +128,25 @@ def assert_opponent_options_track_history(page):
 
     panel = page.locator('#opponent-options')
     expect(panel).to_be_visible()
-    current_options = panel.inner_text()
+    current_options = opponent_moves(panel)
+    assert current_options
 
     page.locator('#history-back').click()
     expect(panel).to_be_visible()
-    after_d5_options = panel.inner_text()
+    after_d5_options = opponent_moves(panel)
     assert after_d5_options == current_options
 
     page.locator('#history-back').click()
     expect(panel).to_be_visible()
-    after_d4_options = panel.inner_text()
+    after_d4_options = opponent_moves(panel)
+    assert after_d4_options
     assert after_d4_options != after_d5_options
 
     page.locator('#history-forward').click()
     page.locator('#history-forward').click()
     expect(page.locator('#history-status')).to_have_text('Current position')
     expect(panel).to_be_visible()
-    assert panel.inner_text() == current_options
+    assert opponent_moves(panel) == current_options
 
 
 def run():
