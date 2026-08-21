@@ -50,6 +50,24 @@ def run():
                       moves: ['g1f3', 'b8c6', 'g2g3', 'g8f6', 'b2b3', 'e7e6'],
                       notes: {}
                     }
+                  ],
+                  branchTeaching: [
+                    {
+                      lineId: 'move-order-a',
+                      position: 'This fixture follows move-order A.',
+                      plan: 'Preserve the canonical A route through practice.',
+                      opponentPlan: 'The opponent move order can transpose into nearby coverage.',
+                      memoryHook: 'Identity follows the active route.',
+                      source: 'fixture'
+                    },
+                    {
+                      lineId: 'move-order-b',
+                      position: 'This fixture follows move-order B.',
+                      plan: 'Preserve the canonical B route through practice.',
+                      opponentPlan: 'The opponent move order can transpose into nearby coverage.',
+                      memoryHook: 'Identity follows the active route.',
+                      source: 'fixture'
+                    }
                   ]
                 };
                 const app = new OpenRepTrainerApp(root, course, { random: () => 0, evaluator: null });

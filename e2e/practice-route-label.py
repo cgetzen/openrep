@@ -40,12 +40,14 @@ def mount_deterministic_app(page, injected: bool):
           { OpenRepTrainerApp },
           { caroKann },
           { caroKannResponses },
-          { caroKannMoveTheory, caroKannLessonDecisions }
+          { caroKannMoveTheory, caroKannLessonDecisions },
+          { caroKannBranchTeaching }
         ] = await Promise.all([
-          import('./src/practice-trainer.js?v=advice-only-v1'),
+          import('./src/practice-trainer.js?v=branch-briefings-v1'),
           import('./src/openings/caro-kann.js'),
           import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
-          import('./src/openings/caro-kann-theory.js?v=decision-cues-v1')
+          import('./src/openings/caro-kann-theory.js?v=decision-cues-v1'),
+          import('./src/openings/caro-kann-branch-teaching.js?v=branch-briefings-v1')
         ]);
         const values = [0.9, 0, 0];
         const random = () => values.length ? values.shift() : 0;
@@ -56,7 +58,8 @@ def mount_deterministic_app(page, injected: bool):
             ...caroKann,
             responses: caroKannResponses,
             moveTheory: caroKannMoveTheory,
-            lessonDecisions: caroKannLessonDecisions
+            lessonDecisions: caroKannLessonDecisions,
+            branchTeaching: caroKannBranchTeaching
           },
           { random, evaluator: null }
         ).mount();

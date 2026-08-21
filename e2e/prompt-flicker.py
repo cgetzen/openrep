@@ -11,6 +11,15 @@ from playwright.sync_api import expect, sync_playwright
 from run import QuietHandler, click_move, load_injected
 
 
+ADVANCE_MAIN_BODY = (
+    'White gains space with the Advance center, but the pawn on d4 becomes a fixed target. '
+    'Develop the light-squared bishop outside the pawn chain, then challenge White’s center '
+    'with d5 and the thematic c5 break. White wants to support the center, finish '
+    'development, and use the extra space for a kingside initiative.'
+)
+ADVANCE_MAIN_KEY_IDEA = 'Key idea: Get the bishop out, then attack the base.'
+
+
 def hold_opponent_autoplay(page):
     page.evaluate("""
       () => {
@@ -52,12 +61,17 @@ def assert_cue_only(prompt):
     expect(prompt).not_to_contain_text('Your move as Black')
 
 
+def assert_branch_briefing(prompt):
+    expect(prompt.locator('.branch-briefing-body')).to_have_text(ADVANCE_MAIN_BODY)
+    expect(prompt.locator('.branch-key-idea')).to_have_text(ADVANCE_MAIN_KEY_IDEA)
+    assert prompt.inner_text() == f'{ADVANCE_MAIN_BODY}\n{ADVANCE_MAIN_KEY_IDEA}'
+
+
 def assert_stable_prompt_after_c6(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
     assert_cue_only(prompt)
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
-    expect(prompt).not_to_contain_text('Develop outside the pawn chain')
+    assert_branch_briefing(prompt)
     expect(prompt).not_to_contain_text('Find c6')
 
     hold_opponent_autoplay(page)
@@ -65,7 +79,7 @@ def assert_stable_prompt_after_c6(page):
 
     expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
     assert_cue_only(prompt)
-    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    assert_branch_briefing(prompt)
     expect(prompt).not_to_contain_text('Opponent move')
     expect(prompt).not_to_contain_text('Watch White’s choice')
 

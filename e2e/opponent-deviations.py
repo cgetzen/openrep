@@ -146,12 +146,14 @@ def run():
                 {caroKann},
                 {caroKannResponses},
                 {caroKannMoveTheory, caroKannLessonDecisions},
+                {caroKannBranchTeaching},
                 {OpenRepTrainerApp}
               ] = await Promise.all([
                 import('./src/openings/caro-kann.js'),
                 import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
                 import('./src/openings/caro-kann-theory.js?v=decision-cues-v1'),
-                import('./src/practice-trainer.js?v=advice-only-v2')
+                import('./src/openings/caro-kann-branch-teaching.js?v=branch-briefings-v1'),
+                import('./src/practice-trainer.js?v=branch-briefings-v1')
               ]);
               document.querySelector('#app').replaceChildren();
               const app = new OpenRepTrainerApp(
@@ -160,7 +162,8 @@ def run():
                   ...caroKann,
                   responses: caroKannResponses,
                   moveTheory: caroKannMoveTheory,
-                  lessonDecisions: caroKannLessonDecisions
+                  lessonDecisions: caroKannLessonDecisions,
+                  branchTeaching: caroKannBranchTeaching
                 },
                 {evaluator: null, random: () => 0}
               );

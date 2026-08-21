@@ -1,3 +1,5 @@
+import { normalizeTeachingProse } from './teaching-copy.js';
+
 const PIECE_NAME = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
 const EXPLANATION_FILES = 'abcdefgh';
@@ -42,6 +44,7 @@ export function explainWrongMove(chess, attemptedUci, expectedUci, expectedNote 
   const movedPiece = preview.get(attemptedMove.to);
   const opponent = sideName(preview.turn());
   const expectedSan = chess.notationFor(expectedUci);
+  const teachingNote = normalizeTeachingProse(expectedNote);
   const captures = capturesOn(preview, attemptedMove.to);
 
   for (const capture of captures) {
@@ -50,7 +53,7 @@ export function explainWrongMove(chess, attemptedUci, expectedUci, expectedNote 
     if (canRecapture(afterCapture, attemptedMove.to)) continue;
 
     const pieceName = PIECE_NAME[movedPiece?.type] ?? 'piece';
-    const plan = expectedNote ? ` ${expectedSan} is the repertoire choice: ${expectedNote}` : ` The repertoire move is ${expectedSan}.`;
+    const plan = teachingNote ? ` ${expectedSan} is the repertoire choice: ${teachingNote}` : ` The repertoire move is ${expectedSan}.`;
     return {
       kind: 'hanging-piece',
       message: `Why this is bad: ${attemptedMove.san} leaves the ${pieceName} on ${attemptedMove.to} hanging. ${opponent} can play ${capture.san} and you cannot recapture.${plan}`,
@@ -59,8 +62,8 @@ export function explainWrongMove(chess, attemptedUci, expectedUci, expectedNote 
     };
   }
 
-  const plan = expectedNote
-    ? `${expectedSan} is the repertoire choice here: ${expectedNote}`
+  const plan = teachingNote
+    ? `${expectedSan} is the repertoire choice here: ${teachingNote}`
     : `${expectedSan} is the repertoire move here.`;
   return {
     kind: 'strategic',

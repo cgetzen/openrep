@@ -24,6 +24,8 @@ test('every full Caro-Kann line has a unique completion takeaway and primary mov
     assert.equal(decision.primaryMove, line.moves[terminalPly]);
     assert.equal(decision.choices[0].role, 'primary');
     assert.ok(decision.choices[0].theory.rationale.length > 0);
+    assert.doesNotMatch(decision.objective, /\.\.\.(?=[A-Za-z0-9])/);
+    assert.doesNotMatch(decision.choices[0].theory.rationale, /\.\.\.(?=[A-Za-z0-9])/);
     return decision;
   });
 
@@ -52,6 +54,8 @@ test('every Black decision in every Caro-Kann branch has a non-answer strategic 
       if (chess.turn() === caroKann.side) {
         const theory = index.theoryAt(miniChessToFen(chess), move);
         assert.ok(theory?.cue, `${line.id} ply ${ply} is missing a decision cue`);
+        assert.doesNotMatch(theory.cue, /\.\.\.(?=[A-Za-z0-9])/);
+        if (theory.rationale) assert.doesNotMatch(theory.rationale, /\.\.\.(?=[A-Za-z0-9])/);
         const answer = chess.notationFor(move);
         assert.equal(
           theory.cue.includes(answer),
@@ -87,7 +91,7 @@ test('terminal decision keeps primary repertoire move separate from accepted mov
   const index = new MoveTheoryIndex(courseWithTheory());
   const decision = index.decisionForLine('early-nf3', 11);
 
-  assert.equal(decision.objective, 'Activate the light-squared bishop before ...e6.');
+  assert.equal(decision.objective, 'Activate the light-squared bishop before e6.');
   assert.equal(decision.primaryMove, 'c8f5');
   assert.deepEqual(decision.acceptedMoves, ['c8g4']);
   assert.deepEqual(
@@ -146,8 +150,21 @@ test('shared authoring anchors collapse into one canonical move theory record', 
 
   const theory = index.theoryAt(miniChessToFen(chess), 'c7c6');
   assert.ok(theory);
-  assert.equal(theory.cue, 'Prepare to challenge White’s center with ...d5.');
+  assert.equal(theory.cue, 'Prepare to challenge White’s center with d5.');
   assert.equal(theory.authoringAnchors.length, caroKann.lines.length);
+});
+
+test('move theory normalizes black-move ellipsis before canonical comparison', () => {
+  const base = caroKannMoveTheory[0];
+  const duplicate = {
+    ...base,
+    anchor: { lineId: 'advance-tal', ply: 1 },
+    cue: 'Prepare to challenge White’s center with d5.'
+  };
+
+  assert.doesNotThrow(() => new MoveTheoryIndex(courseWithTheory({
+    moveTheory: [...caroKannMoveTheory, duplicate]
+  })));
 });
 
 test('lesson decisions fail fast when an accepted move has no theory', () => {

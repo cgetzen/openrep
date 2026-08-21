@@ -1,6 +1,7 @@
 import { MiniChess } from './mini-chess.js';
 import { miniChessToFen } from './position-fen.js';
 import { normalizePositionKey } from './repertoire-moves.js?v=response-learning-v2';
+import { normalizeTeachingProse } from './teaching-copy.js';
 
 function moveKey(uci) {
   return typeof uci === 'string' ? uci.slice(0, 4) : '';
@@ -11,7 +12,8 @@ function positionKey(chess) {
 }
 
 function nonEmptyText(value) {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  return normalizeTeachingProse(value.trim());
 }
 
 export function moveTheoryIdentityKey(position, move) {
@@ -147,7 +149,8 @@ export class MoveTheoryIndex {
       if (chess.turn() !== this.course.side) {
         throw new Error(`Lesson decision ${entry.id} must belong to the repertoire side`);
       }
-      if (!entry.objective || typeof entry.objective !== 'string') {
+      const objective = nonEmptyText(entry.objective);
+      if (!objective) {
         throw new Error(`Lesson decision ${entry.id} must explain its teaching objective`);
       }
 
@@ -191,6 +194,7 @@ export class MoveTheoryIndex {
       }
       this.decisionByLinePly.set(decisionKey, {
         ...entry,
+        objective,
         lineId: line.id,
         ply,
         positionKey: key,
