@@ -8,7 +8,6 @@ import {
   curriculumConceptsForMember,
   curriculumLineOrder,
   curriculumTeachingUnitPresentation,
-  primaryCurriculumFamilyForMember,
   validateCurriculum
 } from '../src/curriculum.js';
 import { normalizePositionKey, RepertoireMoveIndex } from '../src/repertoire-moves.js';
@@ -53,29 +52,11 @@ test('primary families are exclusive while concepts can overlap across teaching 
   const earlyNf3Concepts = curriculumConceptsForMember(caroKannCurriculum, 'line', 'early-nf3').map(concept => concept.id);
   assert.deepEqual(earlyNf3Concepts.sort(), ['exchange-structures', 'transposition-recognition']);
 
-  const acceleratedConcepts = curriculumConceptsForMember(caroKannCurriculum, 'response', 'accelerated-panov-c4').map(concept => concept.id);
-  assert.deepEqual(acceleratedConcepts.sort(), ['central-counterplay', 'exchange-structures', 'iqp-play']);
+  const acceleratedConcepts = curriculumConceptsForMember(caroKannCurriculum, 'line', 'accelerated-panov').map(concept => concept.id);
+  assert.deepEqual(acceleratedConcepts.sort(), ['central-counterplay', 'exchange-structures']);
 });
 
 test('response teaching-unit presentation is canonical and independent of its owner line route', () => {
-  const acceleratedFamily = primaryCurriculumFamilyForMember(
-    caroKannCurriculum,
-    'response',
-    'accelerated-panov-c4'
-  );
-  assert.equal(acceleratedFamily.id, 'accelerated-panov');
-
-  const accelerated = curriculumTeachingUnitPresentation(
-    caroKannCurriculum,
-    'response',
-    'accelerated-panov-c4',
-    '2.c4 Accelerated Panov'
-  );
-  assert.equal(accelerated.teachingUnitId, 'response:accelerated-panov-c4');
-  assert.equal(accelerated.title, '2.c4 — Accelerated Panov');
-  assert.equal(accelerated.meta, 'Important · Top-level opponent decision');
-  assert.equal(accelerated.standaloneResponseFamily, true);
-
   const nd2 = curriculumTeachingUnitPresentation(
     caroKannCurriculum,
     'response',
@@ -149,7 +130,8 @@ test('Core and Important tiers encode the intended practical coverage thresholds
   assert.ok(exchange.responseIds.includes('exchange-c3'));
 
   assert.equal(accelerated.tier, 'important');
-  assert.deepEqual(accelerated.responseIds, ['accelerated-panov-c4']);
+  assert.deepEqual(accelerated.lineIds, ['accelerated-panov']);
+  assert.deepEqual(accelerated.responseIds, []);
 });
 
 test('3.Nd2 response transposes into the existing Classical chess position', () => {
@@ -186,16 +168,21 @@ test('primary 3...c5 lesson covers the two major non-canonical fourth moves as r
   assert.equal(nf3.response, 'c5d4');
 });
 
-test('2.c4 is a directly teachable Important response from the primary path', () => {
+test('2.c4 is a full Important branch with multiple repertoire decisions', () => {
   const course = buildCourse();
   const index = new RepertoireMoveIndex(course);
-  const primary = course.lines.find(line => line.id === 'advance-early-c5');
-  const route = index.newResponsesForLine(primary).find(candidate =>
-    candidate.responseId === 'accelerated-panov-c4'
-  );
+  const accelerated = course.lines.find(line => line.id === 'accelerated-panov');
+  assert.ok(accelerated);
+  assert.deepEqual(accelerated.moves, [
+    'e2e4','c7c6','c2c4','d7d5','e4d5','c6d5','c4d5','g8f6',
+    'b1c3','f6d5','g1f3','d5c3','d2c3','d8d1','e1d1','b8c6'
+  ]);
 
-  assert.ok(route);
-  assert.equal(route.opponentMove, 'c2c4');
-  assert.equal(route.response, 'd7d5');
-  assert.match(route.idea, /Accelerated Panov|c4/i);
+  const primary = course.lines.find(line => line.id === 'advance-early-c5');
+  const c4 = index.opponentAlternatives(primary, 2).find(candidate => candidate.opponentMove === 'c2c4');
+  assert.ok(c4);
+  assert.equal(c4.kind, 'branch');
+  assert.equal(c4.coverage, 'covered-elsewhere');
+  assert.equal(c4.targetLineId, 'accelerated-panov');
+  assert.equal(index.responseById.has('accelerated-panov-c4'), false);
 });
