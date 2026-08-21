@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { TrainerApp } from '../src/trainer.js';
+import { OpenRepTrainerApp } from '../src/practice-trainer.js';
+import { MiniChess } from '../src/mini-chess.js';
 
 function historyHarness({ ply = 4, viewPly = null } = {}) {
   const calls = [];
@@ -23,7 +25,13 @@ function historyHarness({ ply = 4, viewPly = null } = {}) {
   };
 }
 
-test('history navigation uses the narrow history projection instead of full refresh', () => {
+function chessAt(moves, ply) {
+  const chess = new MiniChess();
+  for (const move of moves.slice(0, ply)) chess.moveUci(move);
+  return chess;
+}
+
+test('history navigation uses the history projection instead of full refresh', () => {
   const app = historyHarness({ ply: 4 });
 
   TrainerApp.prototype.navigateHistory.call(app, -1);
@@ -32,7 +40,7 @@ test('history navigation uses the narrow history projection instead of full refr
   assert.deepEqual(app.calls, ['clearSelection', 'refreshHistoryView']);
 });
 
-test('history navigation returns to live position through the same narrow projection', () => {
+test('history navigation returns to live position through the same projection', () => {
   const app = historyHarness({ ply: 4, viewPly: 3 });
 
   TrainerApp.prototype.navigateHistory.call(app, 1);
@@ -41,26 +49,89 @@ test('history navigation returns to live position through the same narrow projec
   assert.deepEqual(app.calls, ['clearSelection', 'refreshHistoryView']);
 });
 
-test('history projection is restricted to advice, board state, and history controls', () => {
+test('OpenRep history projection refreshes all position-derived right-panel surfaces', () => {
   const calls = [];
   const app = {
+    renderDecisionPrompt() { calls.push('advice'); },
+    renderOpponentOptions() { calls.push('opponent-options'); },
+    renderResponseSummary() { calls.push('response-summary'); },
+    renderDisplayedFeedback() { calls.push('move-feedback'); },
+    renderCompletionTheory() { calls.push('completion-theory'); },
+    refreshBoardState() { calls.push('board'); },
+    refreshHistoryControls() { calls.push('controls'); },
     refresh() {
       throw new Error('history projection must never invoke the full trainer refresh');
-    },
-    refreshHistoryAdvice() {
-      calls.push('advice');
-    },
-    refreshBoardState() {
-      calls.push('board');
-    },
-    refreshHistoryControls() {
-      calls.push('controls');
     }
   };
 
-  TrainerApp.prototype.refreshHistoryView.call(app);
+  OpenRepTrainerApp.prototype.refreshHistoryView.call(app);
 
-  assert.deepEqual(calls, ['advice', 'board', 'controls']);
+  assert.deepEqual(calls, [
+    'advice',
+    'opponent-options',
+    'response-summary',
+    'move-feedback',
+    'completion-theory',
+    'board',
+    'controls'
+  ]);
+});
+
+test('historical move feedback follows the most recent repertoire move at displayPly', () => {
+  const moves = [
+    'e2e4', 'c7c6', 'd2d3', 'd7d5', 'b1d2',
+    'e7e5', 'g1f3', 'f8d6', 'g2g3'
+  ];
+  const notes = {
+    1: '1...c6 keeps the usual Caro-Kann structure.',
+    3: '2...d5 claims equal central space immediately.',
+    5: '3...e5 creates a broad center because White has not challenged it.',
+    7: '4...Bd6 develops toward the kingside and supports the center.'
+  };
+  const app = {
+    viewPly: 9,
+    course: { side: 'b' },
+    sessionRoute: { moves, notes },
+    completedTerminalMove: null,
+    positionAtPly(ply) { return { chess: chessAt(moves, ply) }; },
+    moveAtPly(ply) { return moves[ply] ?? null; },
+    currentRouteNote(ply) { return notes[ply] ?? ''; }
+  };
+
+  const feedbackAt = ply => {
+    app.viewPly = ply;
+    return OpenRepTrainerApp.prototype.displayedMoveFeedback.call(app)?.text ?? '';
+  };
+
+  assert.equal(feedbackAt(9), 'Bd6 — 4...Bd6 develops toward the kingside and supports the center.');
+  assert.equal(feedbackAt(8), 'Bd6 — 4...Bd6 develops toward the kingside and supports the center.');
+  assert.equal(feedbackAt(7), 'e5 — 3...e5 creates a broad center because White has not challenged it.');
+  assert.equal(feedbackAt(5), 'd5 — 2...d5 claims equal central space immediately.');
+  assert.equal(feedbackAt(1), '');
+});
+
+test('historical opponent alternatives are resolved from the viewed opponent decision', () => {
+  const moves = ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5'];
+  const requested = [];
+  const app = {
+    mode: 'learn',
+    viewPly: 4,
+    course: { side: 'b' },
+    line: { moves },
+    sessionRoute: { kind: 'canonical' },
+    positionAtPly(ply) { return { chess: chessAt(moves, ply) }; },
+    repertoire: {
+      opponentAlternatives(_line, ply) {
+        requested.push(ply);
+        return [{ ply }];
+      }
+    }
+  };
+
+  assert.deepEqual(OpenRepTrainerApp.prototype.displayedOpponentOptions.call(app), [{ ply: 4 }]);
+  app.viewPly = 3;
+  assert.deepEqual(OpenRepTrainerApp.prototype.displayedOpponentOptions.call(app), [{ ply: 2 }]);
+  assert.deepEqual(requested, [4, 2]);
 });
 
 test('history navigation does nothing when already at the requested boundary', () => {
