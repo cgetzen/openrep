@@ -108,8 +108,12 @@ def run():
             expect(response_summary).not_to_contain_text('4.h4')
 
             response_summary.get_by_role('button', name='Learn response').click()
-            expect(page.locator('#line-title')).to_have_text('Another good move: 4.Be2')
-            expect(page.locator('#line-variation')).to_contain_text('New response')
+            # Curriculum presentation is canonical for the response teaching unit;
+            # owner-line route mechanics must not become the lesson identity.
+            expect(page.locator('#line-title')).to_have_text('Quiet development')
+            expect(page.locator('#line-variation')).to_have_text('On demand · Alternative repertoire')
+            expect(page.locator('.lesson-card')).not_to_contain_text('Another good move')
+            expect(page.locator('.lesson-card')).not_to_contain_text('from Advance — Main setup')
             wait_for_last_move(page, 'f1e2')
             wait_for_expected_move(page, 'e7e6')
             expect(page.locator('#prompt')).not_to_contain_text('How should Black respond?')

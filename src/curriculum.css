@@ -1,0 +1,162 @@
+.curriculum-map-summary {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.curriculum-list {
+  display: grid;
+  gap: 24px;
+}
+
+.curriculum-tier {
+  display: grid;
+  gap: 10px;
+}
+
+.curriculum-tier-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 2px;
+}
+
+.curriculum-tier-header h3 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+
+.curriculum-tier-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.curriculum-target,
+.curriculum-evidence,
+.curriculum-role {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.curriculum-target {
+  padding: 6px 9px;
+  border: 1px solid #4c583f;
+  color: #dfffa1;
+  background: #20291b;
+}
+
+.curriculum-family-list {
+  display: grid;
+  gap: 9px;
+}
+
+.curriculum-family {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(25,28,23,.78);
+  padding: 15px;
+}
+
+.curriculum-tier-core .curriculum-family {
+  border-left: 3px solid var(--accent);
+}
+
+.curriculum-family-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.curriculum-family-header h4 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  letter-spacing: -.015em;
+}
+
+.curriculum-role {
+  padding: 4px 7px;
+  background: #292e26;
+  color: var(--muted);
+}
+
+.curriculum-evidence {
+  padding: 6px 8px;
+  background: #303724;
+  color: #e7efb0;
+  cursor: help;
+}
+
+.curriculum-teaching {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 12px 0;
+}
+
+.curriculum-teaching p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.curriculum-teaching strong {
+  color: #e7eadf;
+}
+
+.curriculum-family-progress {
+  margin: 0 0 8px;
+  color: #7f8877;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.curriculum-members {
+  display: grid;
+  gap: 6px;
+}
+
+.curriculum-members .line-item {
+  background: var(--panel-2);
+}
+
+.curriculum-response-item {
+  border-style: dashed;
+}
+
+.curriculum-response-marker {
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 700px) {
+  .curriculum-tier-header,
+  .curriculum-family-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .curriculum-teaching {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-evidence,
+  .curriculum-target {
+    align-self: flex-start;
+  }
+}

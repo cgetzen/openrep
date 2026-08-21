@@ -56,6 +56,28 @@ In particular:
 - Do not use labels, lesson IDs, authoring anchors, or source-specific IDs as identity when the underlying domain object has a more stable key.
 - Validate domain uniqueness/invariants at construction boundaries so bad course data fails fast instead of producing duplicate or contradictory UI later.
 
+### Learner-facing move notation invariant
+
+Learner-facing explanatory prose should show chess moves without Black-move ellipses or embedded move-number prefixes. For example, render `c5` and `Bf5`, not `...c5`, `3...c5`, or `4...Bf5`.
+
+- Authored/static/generated source content may retain conventional notation when useful for provenance or authoring; normalize it at the shared teaching/presentation boundary.
+- Apply the convention consistently across prompts, feedback, branch briefings, curriculum titles/plans/recognition copy, response labels, evidence/tooltips, and future explanatory surfaces.
+- Do not solve this by editing one occurrence of copy when the same notation can enter through other content sources.
+- Explicit move-sequence notation whose purpose is to show numbered game history is a separate presentation concern and may retain move numbers when intentionally designed as notation rather than prose.
+
+### Teaching-unit presentation invariant
+
+A stable response is one teaching unit regardless of how the learner navigates to it. Navigation and route execution must not create alternate learner-facing identities for the same `responseId`.
+
+- `responseId` identifies the response teaching unit. `sessionRoute`, `teachingOwnerLineId`, divergence ply, authoring anchor, and the line used to reconstruct the position are execution/authoring mechanics, not lesson identity.
+- If a response belongs to a primary curriculum family, resolve its learner-facing title, tier, and role through the shared curriculum teaching-unit presentation resolver. Curriculum-map entry, opponent-alternative entry, completed-line response entry, and transposed entry must produce the same title and metadata.
+- A primary family with no full lines and exactly one response is a standalone response family. Its family title is the lesson title; do not render a second conceptual child title that makes the same material look like a different lesson. A child action may show the concrete `<opponent move> → <repertoire response>` pair.
+- A response teaching unit owns one opponent decision and one repertoire answer. Optional continuation is illustrative context; it must not silently become additional required repertoire-side decisions.
+- If the teaching objective requires the learner to make multiple later repertoire-side decisions, model that material as a full line/branch. Full-line coverage then takes precedence over a standalone response for the same opponent move.
+- A response inside a mixed family may retain its response-specific child title, but family/tier metadata still comes from the same canonical resolver.
+- Do not expose route-owner copy such as `Another good move` or `from <teaching owner line>` as the canonical lesson header when curriculum metadata already owns that teaching unit.
+- Regression coverage should verify presentation parity across at least two entry paths for a curriculum-mapped response when practical, and must reject route-owner copy leakage in the canonical header.
+
 ### Learn / Practice parity invariant
 
 Learn and Practice should share trainer behavior and UI by default. Differences between the modes are a frequent source of regressions and must be kept deliberately small.
@@ -91,7 +113,9 @@ A move attempt is a function of the displayed chess/decision state, not of the n
 
 ## 4. Architecture invariants
 
-OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, and learner progress as separate concerns. The current response architecture should evolve along this seam:
+Read `ARCHITECTURE.md` before changing repertoire discovery, curriculum modeling, position/response identity, generated content, personalization, or opening-data ingestion. Its diagrams are the expanded reference architecture.
+
+OpenRep should keep chess-state identity, repertoire coverage, response discovery, curriculum ownership, curriculum presentation, and learner progress as separate concerns. The current response architecture should evolve along this seam:
 
 ```mermaid
 flowchart LR
@@ -109,7 +133,36 @@ flowchart LR
     G["Progress<br/>line scheduling + learned response IDs"] --> T
 ```
 
-Key invariants:
+### Content-generation boundary
+
+Opening-database exploration and broad engine analysis belong at offline/content-generation time, not in the browser runtime.
+
+```mermaid
+flowchart LR
+    DB["Opening database snapshot"] --> GEN["Offline generator"]
+    SF["Stockfish / theory"] --> GEN
+    POL["Coverage + repertoire policy"] --> GEN
+    GEN --> ART["Deterministic candidate content artifact"]
+    ART --> PR["Reviewable Git diff / draft PR"]
+    PR --> SNAP["Committed versioned snapshot"]
+    SNAP --> RUN["Static browser runtime"]
+```
+
+- A routine production build must consume committed content; it must not silently query live opening databases or regenerate the curriculum.
+- Scheduled/manual refreshes may generate candidate changes, but material curriculum/repertoire changes should be reviewed through Git/PRs.
+- Generator output should be deterministic for a fixed database snapshot, cohort, engine version/settings, generation-policy version, and curated overrides.
+- The runtime coverage index answers what the shipped repertoire contains. It should not become the system that decides what repertoire ought to exist.
+- Future personalized frequency/tier views should normally re-rank accepted stable content rather than mutate position/response identity in the browser.
+
+### Curriculum model boundary
+
+- Generic curriculum mechanics belong in opening-agnostic modules. Opening-specific files should contain data/evidence, not copied validator/builder/trainer logic.
+- A line has one primary curriculum family for deterministic course-map placement. A directly surfaced response may also have at most one primary family.
+- Pedagogical concepts/tags are many-to-many and separate from primary families. Do not use the course hierarchy as the ontology for pawn structures, motifs, transpositions, recognition cues, or other cross-cutting teaching concepts.
+- Curriculum tier, family, evidence, ordering, labels, cohort, and presentation are metadata, not line/position/response identity.
+- Future opening generators should emit the same generic curriculum schema consumed by curated opening data today.
+
+Key identity invariants:
 - chess position identity is based on normalized position state, not move-order history;
 - a response is canonically identified by `(position, opponent move)`;
 - `responseId` is the stable progress/content handle for that canonical response;

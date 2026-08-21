@@ -269,15 +269,15 @@ def run():
             expect(page.locator('#grading')).to_be_hidden()
             assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
             restore_app(page, injected)
-            expect(page.locator('#course-progress')).to_contain_text('1/12')
+            expect(page.locator('#course-progress')).to_contain_text('1/13')
             results.append('persists automatic scheduling/progress through a full app restore')
 
             # Reset and prove every branch through the real interactive board.
             page.get_by_role('button', name='Reset local progress').click()
-            expect(page.locator('#course-progress')).to_contain_text('0/12')
+            expect(page.locator('#course-progress')).to_contain_text('0/13')
             lines = get_course_lines(page, injected)
             for index, line in enumerate(lines):
-                print(f'ui line {index+1}/12: {line["title"]}', flush=True)
+                print(f'ui line {index+1}/{len(lines)}: {line["title"]}', flush=True)
                 page.locator(f'[data-line-index="{index}"]').click()
                 expect(page.locator('#line-title')).to_have_text(line['title'])
                 for ply in range(1, len(line['moves']), 2):
@@ -289,8 +289,8 @@ def run():
                 expect(page.locator('#prompt')).not_to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
                 expect(page.locator('#grading')).to_be_hidden()
-            expect(page.locator('#course-progress')).to_contain_text('12/12')
-            results.append('completes all 12 Caro-Kann branches through board interactions')
+            expect(page.locator('#course-progress')).to_contain_text('13/13')
+            results.append('completes all 13 Caro-Kann branches through board interactions')
 
             # The product has only Learn and Practice. Practice exposes a subordinate
             # Spaced/Weak queue selector, and changing it does not create a third mode.

@@ -10,6 +10,10 @@ test('teaching prose removes black-move ellipsis without changing normal prose',
     normalizeTeachingProse('Play ...d5, then 4...Bf5. Keep developing.'),
     'Play d5, then Bf5. Keep developing.'
   );
+  assert.equal(
+    normalizeTeachingProse('Challenge d4 immediately with ...c5 and make White define the center.'),
+    'Challenge d4 immediately with c5 and make White define the center.'
+  );
   assert.equal(normalizeTeachingProse('A normal sentence.'), 'A normal sentence.');
   assert.equal(hasBlackMoveEllipsis('Play ...c5.'), true);
   assert.equal(hasBlackMoveEllipsis(normalizeTeachingProse('Play ...c5.')), false);

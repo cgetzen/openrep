@@ -94,5 +94,13 @@ export const caroKannBranchTeaching = [
     opponentPlan: 'White wants to preserve the space advantage and finish development before d4 becomes a lasting target.',
     memoryHook: 'If you play c5 early, make d4 feel the pressure immediately.',
     source: 'curated'
+  },
+  {
+    lineId: 'accelerated-panov',
+    position: 'White challenges the Caro-Kann immediately with c4 and can temporarily leave a pawn on d5 after the central exchanges.',
+    plan: 'Meet c4 with d5, recapture with the c-pawn, then develop Nf6 before recovering d5 with the knight and simplifying White’s initiative.',
+    opponentPlan: 'White wants to use the open center to gain tempi on an exposed queen and turn the early c-pawn push into rapid development.',
+    memoryHook: 'Develop the knight before taking d5.',
+    source: 'curated'
   }
 ];
