@@ -59,6 +59,10 @@ export function coverageForThresholds(rankedMoves, thresholds = DEFAULT_THRESHOL
       selected.push(entry.move);
       if (entry.cumulativePercent >= threshold) break;
     }
+    assert(
+      rankedMoves.at(-1)?.cumulativePercent >= threshold,
+      `Observed moves reach only ${rankedMoves.at(-1)?.cumulativePercent ?? 0}% and cannot satisfy the ${threshold}% coverage checkpoint`
+    );
     return [String(threshold), Object.freeze(selected)];
   })));
 }
@@ -70,7 +74,13 @@ function compileDecision(decision, thresholds) {
 
   const rankedMoves = rankObservedMoves(decision.observedMoves, decision.totalGames ?? null);
   const coverage = coverageForThresholds(rankedMoves, thresholds);
-  const responseByOpponentMove = new Map((decision.responses ?? []).map(response => [response.opponentMove, response]));
+  const responseByOpponentMove = new Map();
+  for (const response of decision.responses ?? []) {
+    assert(response?.opponentMove, `Decision ${decision.id} has a response without an opponent move`);
+    assert(response?.repertoireMove, `Decision ${decision.id} response ${response.opponentMove} is missing repertoireMove`);
+    assert(!responseByOpponentMove.has(response.opponentMove), `Decision ${decision.id} has duplicate response ${response.opponentMove}`);
+    responseByOpponentMove.set(response.opponentMove, response);
+  }
   const requiredMoves = new Set(Object.values(coverage).flat());
 
   for (const move of requiredMoves) {
@@ -111,11 +121,15 @@ export function compileRepertoireSnapshot(snapshot) {
     decisionIds.add(decision.id);
   }
 
+  const terminalAlternativeIds = new Set();
   const terminalAlternatives = Object.freeze(Object.fromEntries(
     (snapshot.terminalAlternatives ?? []).map(entry => {
       assert(entry?.decisionId, 'Terminal alternative requires decisionId');
+      assert(!terminalAlternativeIds.has(entry.decisionId), `Duplicate terminal alternative: ${entry.decisionId}`);
+      terminalAlternativeIds.add(entry.decisionId);
       assert(entry?.anchor?.lineId && Number.isInteger(entry?.anchor?.ply), `Terminal alternative ${entry?.decisionId ?? 'unknown'} needs an authoring anchor`);
       assert(Array.isArray(entry.acceptedMoves) && entry.acceptedMoves.length > 0, `Terminal alternative ${entry.decisionId} needs acceptedMoves`);
+      assert(new Set(entry.acceptedMoves).size === entry.acceptedMoves.length, `Terminal alternative ${entry.decisionId} has duplicate accepted moves`);
       return [entry.decisionId, Object.freeze({
         anchor: Object.freeze({ ...entry.anchor }),
         cue: entry.cue ?? '',
