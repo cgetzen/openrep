@@ -2,6 +2,8 @@ import { CoachingTrainerApp, reviewDecisionPly } from './coaching-trainer.js?v=h
 import { miniChessToFen } from './position-fen.js';
 import { BranchTeachingIndex } from './branch-teaching.js?v=branch-briefings-v1';
 import { normalizeTeachingProse } from './teaching-copy.js';
+import { defaultLineProgress, isLineMastered, lineLearningStatus, recordLineAttempt } from './progress.js';
+import { pickPracticeLineIndex } from './practice-selection.js?v=recent-attempt-mastery-v1';
 
 function sameMoveSequence(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -99,6 +101,15 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
   showFeedback(message, kind) {
     const displayed = kind === 'correct' ? normalizeMoveTeachingFeedback(message) : message;
     super.showFeedback(displayed, kind);
+  }
+
+  pickPracticeLineIndex() {
+    return pickPracticeLineIndex(
+      this.course.lines,
+      this.progress,
+      this.practiceSelection,
+      { random: this.random }
+    );
   }
 
   displayedDecisionContext() {
@@ -321,6 +332,37 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
       return;
     }
     super.renderCompletionTheory();
+  }
+
+  finishLine() {
+    if (!this.isLearnResponseLesson() && this.line?.id) {
+      const current = this.progress.lines[this.line.id] ?? defaultLineProgress();
+      this.progress.lines[this.line.id] = recordLineAttempt(current, this.mistakesThisLine);
+    }
+    super.finishLine();
+  }
+
+  renderProgress() {
+    const discovered = this.progress.discovered.length;
+    const mastered = this.course.lines.filter(line =>
+      this.progress.discovered.includes(line.id) && isLineMastered(this.progress.lines[line.id])
+    ).length;
+    this.root.querySelector('#course-progress').innerHTML = `<div><strong>${discovered}/${this.course.lines.length}</strong><span>discovered</span></div><div><strong>${mastered}</strong><span>mastered</span></div>`;
+  }
+
+  renderLineList() {
+    super.renderLineList();
+    const el = this.root.querySelector('#line-list');
+    el.querySelectorAll('[data-line-index]').forEach(button => {
+      const line = this.course.lines[Number(button.dataset.lineIndex)];
+      if (!line) return;
+      const discovered = this.progress.discovered.includes(line.id);
+      const status = lineLearningStatus(this.progress.lines[line.id], discovered);
+      const pill = button.querySelector('.status-pill');
+      if (!pill) return;
+      pill.textContent = status;
+      pill.className = `status-pill ${status.toLowerCase()}`;
+    });
   }
 
   refresh() {

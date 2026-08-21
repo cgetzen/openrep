@@ -1,4 +1,5 @@
 import { MiniChess } from './mini-chess.js';
+import { lineWeaknessProfile } from './progress.js';
 
 export const PRACTICE_SELECTIONS = Object.freeze(['spaced', 'weak']);
 
@@ -59,15 +60,29 @@ export function pickSpacedLineIndex(lines, progress, now = Date.now()) {
   return due.sort((a, b) => a.dueAt - b.dueAt || a.repetitions - b.repetitions)[0]?.index ?? null;
 }
 
+function compareWeakness(a, b) {
+  if (a.profile.tier !== b.profile.tier) return a.profile.tier - b.profile.tier;
+
+  if (a.profile.tier === 0) {
+    if (a.profile.severity !== b.profile.severity) {
+      return b.profile.severity - a.profile.severity;
+    }
+    if (a.profile.attempts !== b.profile.attempts) {
+      return a.profile.attempts - b.profile.attempts;
+    }
+  } else if (a.profile.tier === 1 && a.profile.attempts !== b.profile.attempts) {
+    return a.profile.attempts - b.profile.attempts;
+  }
+
+  return a.index - b.index;
+}
+
 export function pickWeakLineIndex(lines, progress, random = Math.random) {
   const lineProgress = progress?.lines ?? {};
-  const ranked = lines.map((line, index) => {
-    const current = lineProgress[line.id];
-    const score = (current?.completions ?? 0) * 2
-      + (current?.repetitions ?? 0)
-      - (current?.mistakes ?? 0) * 3;
-    return { index, score };
-  }).sort((a, b) => a.score - b.score || a.index - b.index);
+  const ranked = lines.map((line, index) => ({
+    index,
+    profile: lineWeaknessProfile(lineProgress[line.id])
+  })).sort(compareWeakness);
 
   const weakest = ranked.slice(0, Math.min(4, ranked.length));
   if (weakest.length === 0) return 0;

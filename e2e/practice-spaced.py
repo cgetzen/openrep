@@ -12,6 +12,8 @@ from playwright.sync_api import expect, sync_playwright
 
 from run import QuietHandler, click_move, get_course_lines, load_injected, restore_app
 
+DAY = 24 * 60 * 60 * 1000
+
 
 def course_id(page, injected: bool):
     if injected:
@@ -48,7 +50,7 @@ def run():
 
             lines = get_course_lines(page, injected)
             now = page.evaluate('Date.now()')
-            future = now + 24 * 60 * 60 * 1000
+            future = now + DAY
             scheduled_line = lines[-1]
             progress = {
                 'discovered': [scheduled_line['id']],
@@ -60,7 +62,7 @@ def run():
                         'dueAt': future + index,
                         'mistakes': 0,
                         'completions': 1,
-                        'lastGrade': 'good',
+                        'recentAttempts': [0],
                     }
                     for index, line in enumerate(lines)
                 },
@@ -78,6 +80,7 @@ def run():
             practice.click()
             expect(page.locator('#line-title')).to_have_text(scheduled_line['title'])
             expect(page.locator('#line-counter')).to_contain_text('PRACTICE · SPACED')
+            expect(page.locator('#grading')).to_be_hidden()
 
             # Practice may intentionally sample a learned alternate route for this
             # scheduled line. Follow the route the UI presents instead of hard-coding
@@ -85,7 +88,7 @@ def run():
             prompt = page.locator('#prompt')
             next_button = page.locator('#next-line')
             for _ in range(20):
-                if 'Grade to continue' in next_button.inner_text():
+                if next_button.inner_text() == 'Next review →':
                     break
 
                 expect(prompt).not_to_be_empty()
@@ -107,11 +110,26 @@ def run():
             expect(prompt).not_to_be_empty()
             expect(prompt.locator('strong')).to_have_count(0)
             expect(prompt).not_to_contain_text('Complete')
-            expect(page.locator('#grading')).to_be_visible()
-            expect(next_button).to_be_disabled()
-            expect(next_button).to_have_text('Grade to continue')
+            expect(page.locator('#grading')).to_be_hidden()
+            expect(page.get_by_role('button', name='Again')).to_have_count(0)
+            expect(page.get_by_role('button', name='Hard')).to_have_count(0)
+            expect(page.get_by_role('button', name='Good')).to_have_count(0)
+            expect(page.get_by_role('button', name='Easy')).to_have_count(0)
+            expect(next_button).to_be_enabled()
+            expect(next_button).to_have_text('Next review →')
 
-            page.get_by_role('button', name='Good').click()
+            stored = page.evaluate(
+                'key => JSON.parse(localStorage.getItem(key))',
+                storage_key,
+            )
+            scheduled = stored['lines'][scheduled_line['id']]
+            assert scheduled['spacingStage'] == 1, scheduled
+            assert scheduled['intervalDays'] == 3, scheduled
+            assert scheduled['completions'] == 2, scheduled
+            assert scheduled['recentAttempts'][-1] == 0, scheduled
+            assert scheduled['dueAt'] >= now + 3 * DAY - 60_000, scheduled
+
+            next_button.click()
             expect(page.locator('#line-title')).to_have_text('Spaced reviews complete')
             expect(page.locator('#prompt')).to_be_empty()
             expect(page.locator('#feedback')).to_contain_text('No spaced reviews are due right now')
@@ -127,7 +145,7 @@ def run():
             expect(page.locator('#line-counter')).not_to_contain_text('CAUGHT UP')
 
             browser.close()
-            print('spaced practice final-review regression passed')
+            print('automatic spaced practice regression passed')
     finally:
         server.shutdown()
         server.server_close()
