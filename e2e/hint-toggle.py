@@ -11,12 +11,14 @@ from playwright.sync_api import expect, sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class QuietHandler(http.server.SimpleHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass
+def assert_cue_only(prompt):
+    expect(prompt).not_to_be_empty(timeout=3000)
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
 
 
 def assert_hint_on(page, prompt, target):
+    assert_cue_only(prompt)
     expect(page.get_by_role('button', name='Hint: on')).to_be_visible()
     expect(prompt).to_contain_text('Find c6.')
     expect(target.locator('.hint-target-indicator')).to_have_count(1)
@@ -25,6 +27,7 @@ def assert_hint_on(page, prompt, target):
 
 
 def assert_hint_off(page, prompt, target):
+    assert_cue_only(prompt)
     expect(page.get_by_role('button', name='Hint: off')).to_be_visible()
     expect(prompt).not_to_contain_text('Find c6.')
     expect(target.locator('.hint-target-indicator')).to_have_count(0)
@@ -46,7 +49,7 @@ def run():
 
             prompt = page.locator('#prompt')
             target = page.locator('.square[data-square="c6"]')
-            expect(prompt).to_contain_text('Your move as Black', timeout=3000)
+            assert_cue_only(prompt)
 
             # Learn and Practice share one hint contract: text clue + board marker.
             assert_hint_on(page, prompt, target)
@@ -60,12 +63,10 @@ def run():
 
             # Switching modes must preserve the same hint choice and semantics.
             page.get_by_role('button', name='Practice test your recall').click()
-            expect(prompt).to_contain_text('Your move as Black', timeout=3000)
             assert_hint_off(page, prompt, target)
 
             # Changing Practice strategy must not reset the hint choice either.
             page.get_by_role('button', name='Weak focus weakest lines').click()
-            expect(prompt).to_contain_text('Your move as Black', timeout=3000)
             assert_hint_off(page, prompt, target)
 
             page.get_by_role('button', name='Hint: off').click()
@@ -73,14 +74,13 @@ def run():
 
             # The same enabled state carries back into Learn without mode overrides.
             page.get_by_role('button', name='Learn discover lines').click()
-            expect(prompt).to_contain_text('Your move as Black', timeout=3000)
             assert_hint_on(page, prompt, target)
 
             page.get_by_role('button', name='Hint: on').click()
             assert_hint_off(page, prompt, target)
 
             browser.close()
-            print('Learn/Practice hint toggle regression passed')
+            print('Learn/Practice cue-only hint toggle regression passed')
     finally:
         server.shutdown()
         server.server_close()
