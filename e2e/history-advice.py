@@ -23,6 +23,43 @@ def assert_cue_only(prompt):
     expect(prompt).not_to_contain_text('Your move as Black')
 
 
+def begin_lesson_mutation_guard(page):
+    page.evaluate(
+        """
+        () => {
+          window.__historyLessonObserver?.disconnect();
+          window.__historyLessonMutations = [];
+          const lessonCard = document.querySelector('.lesson-card');
+          window.__historyLessonObserver = new MutationObserver(records => {
+            for (const record of records) {
+              const target = record.target.nodeType === Node.ELEMENT_NODE
+                ? record.target
+                : record.target.parentElement;
+              if (target?.closest?.('#prompt')) continue;
+              window.__historyLessonMutations.push({
+                type: record.type,
+                target: target?.id || target?.className || target?.tagName || 'unknown'
+              });
+            }
+          });
+          window.__historyLessonObserver.observe(lessonCard, {
+            subtree: true,
+            childList: true,
+            characterData: true,
+            attributes: true
+          });
+        }
+        """
+    )
+
+
+def assert_only_advice_mutated(page):
+    page.wait_for_timeout(25)
+    unexpected = page.evaluate('() => window.__historyLessonMutations ?? []')
+    assert unexpected == [], f'history navigation mutated stable lesson UI: {unexpected}'
+    page.evaluate('() => { window.__historyLessonMutations = []; }')
+
+
 def assert_history_shows_advice(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
@@ -35,32 +72,46 @@ def assert_history_shows_advice(page):
     assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
+    feedback_before = page.locator('#feedback').evaluate('(el) => el.outerHTML')
+    opponent_options_before = page.locator('#opponent-options').evaluate('(el) => el.outerHTML')
+    begin_lesson_mutation_guard(page)
+
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 2 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     assert_cue_only(prompt)
     expect(prompt).not_to_contain_text('Advice for')
     expect(prompt).not_to_contain_text('Reviewing this route')
+    assert_only_advice_mutated(page)
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 1 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     assert_cue_only(prompt)
+    assert_only_advice_mutated(page)
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 0 / 3')
     expect(prompt).to_be_empty()
     expect(prompt).not_to_contain_text('Reviewing this route')
     expect(prompt).not_to_contain_text('Use → to return')
+    assert_only_advice_mutated(page)
 
     page.locator('#history-forward').click()
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    assert_only_advice_mutated(page)
     page.locator('#history-forward').click()
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
+    assert_only_advice_mutated(page)
     page.locator('#history-forward').click()
     expect(history_status).to_have_text('Current position')
     assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
+    assert_only_advice_mutated(page)
+
+    assert page.locator('#feedback').evaluate('(el) => el.outerHTML') == feedback_before
+    assert page.locator('#opponent-options').evaluate('(el) => el.outerHTML') == opponent_options_before
+    page.evaluate('() => window.__historyLessonObserver?.disconnect()')
 
 
 def run():
@@ -102,4 +153,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('cue-only history advice Learn/Practice regression passed')
+    print('advice-only history mutation invariant Learn/Practice regression passed')
