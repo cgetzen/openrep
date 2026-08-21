@@ -110,16 +110,54 @@ test('historical move feedback follows the most recent repertoire move at displa
   assert.equal(feedbackAt(1), '');
 });
 
-test('historical opponent alternatives are resolved from the viewed opponent decision', () => {
-  const moves = ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5'];
+test('decision context advances on the opponent move and stays fixed through the repertoire reply', () => {
+  const moves = ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5', 'c8f5'];
+  const app = {
+    viewPly: 1,
+    ply: 5,
+    practiceCaughtUp: false,
+    course: { side: 'b' },
+    sessionRoute: { kind: 'canonical', moves },
+    positionAtPly(ply) { return { chess: chessAt(moves, ply) }; },
+    moveAtPly(ply) { return moves[ply] ?? null; },
+    moveTheory: { cueAt() { return 'cue'; } }
+  };
+
+  const contextAt = ply => {
+    app.viewPly = ply;
+    const context = OpenRepTrainerApp.prototype.displayedDecisionContext.call(app);
+    return context && {
+      decisionPly: context.decisionPly,
+      opponentDecisionPly: context.opponentDecisionPly,
+      moveAlreadyPlayed: context.moveAlreadyPlayed
+    };
+  };
+
+  assert.deepEqual(contextAt(1), { decisionPly: 1, opponentDecisionPly: 0, moveAlreadyPlayed: false });
+  assert.deepEqual(contextAt(2), { decisionPly: 1, opponentDecisionPly: 0, moveAlreadyPlayed: true });
+  assert.deepEqual(contextAt(3), { decisionPly: 3, opponentDecisionPly: 2, moveAlreadyPlayed: false });
+  assert.deepEqual(contextAt(4), { decisionPly: 3, opponentDecisionPly: 2, moveAlreadyPlayed: true });
+  assert.deepEqual(contextAt(5), { decisionPly: 5, opponentDecisionPly: 4, moveAlreadyPlayed: false });
+});
+
+test('opponent alternatives consume the same decision context as advice', () => {
+  const moves = ['e2e4', 'c7c6', 'd2d4', 'd7d5', 'e4e5', 'c8f5'];
   const requested = [];
   const app = {
     mode: 'learn',
-    viewPly: 4,
+    viewPly: 3,
+    ply: 5,
+    lineFinished: false,
+    practiceCaughtUp: false,
     course: { side: 'b' },
     line: { moves },
-    sessionRoute: { kind: 'canonical' },
+    sessionRoute: { kind: 'canonical', moves },
     positionAtPly(ply) { return { chess: chessAt(moves, ply) }; },
+    moveAtPly(ply) { return moves[ply] ?? null; },
+    moveTheory: { cueAt() { return 'cue'; } },
+    displayedDecisionContext() {
+      return OpenRepTrainerApp.prototype.displayedDecisionContext.call(this);
+    },
     repertoire: {
       opponentAlternatives(_line, ply) {
         requested.push(ply);
@@ -128,10 +166,16 @@ test('historical opponent alternatives are resolved from the viewed opponent dec
     }
   };
 
-  assert.deepEqual(OpenRepTrainerApp.prototype.displayedOpponentOptions.call(app), [{ ply: 4 }]);
-  app.viewPly = 3;
-  assert.deepEqual(OpenRepTrainerApp.prototype.displayedOpponentOptions.call(app), [{ ply: 2 }]);
-  assert.deepEqual(requested, [4, 2]);
+  const optionsAt = ply => {
+    app.viewPly = ply;
+    return OpenRepTrainerApp.prototype.displayedOpponentOptions.call(app);
+  };
+
+  assert.deepEqual(optionsAt(3), [{ ply: 2 }]);
+  assert.deepEqual(optionsAt(4), [{ ply: 2 }]);
+  assert.deepEqual(optionsAt(5), [{ ply: 4 }]);
+  assert.deepEqual(optionsAt(2), [{ ply: 0 }]);
+  assert.deepEqual(requested, [2, 2, 4, 0]);
 });
 
 test('history navigation does nothing when already at the requested boundary', () => {
