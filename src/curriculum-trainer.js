@@ -1,8 +1,13 @@
 import { AutomaticSpacedTrainerApp } from './automatic-spaced-trainer.js?v=history-attempt-parity-v3';
 import { lineLearningStatus } from './progress.js';
+import { normalizeTeachingProse } from './teaching-copy.js';
 
 function responseLearned(progress, responseId) {
   return (progress?.learnedResponses ?? []).includes(responseId);
+}
+
+function displayText(value) {
+  return normalizeTeachingProse(value);
 }
 
 export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
@@ -13,13 +18,13 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     const presentation = this.course.curriculum?.presentation ?? {};
     const eyebrow = heading?.querySelector('.eyebrow');
     const title = heading?.querySelector('h2');
-    if (eyebrow) eyebrow.textContent = presentation.eyebrow ?? 'Curriculum map';
-    if (title) title.textContent = presentation.title ?? 'Course curriculum';
+    if (eyebrow) eyebrow.textContent = displayText(presentation.eyebrow ?? 'Curriculum map');
+    if (title) title.textContent = displayText(presentation.title ?? 'Course curriculum');
 
     if (presentation.summary) {
       const summary = document.createElement('p');
       summary.className = 'curriculum-map-summary';
-      summary.textContent = presentation.summary;
+      summary.textContent = displayText(presentation.summary);
       heading?.querySelector('div')?.append(summary);
     }
   }
@@ -78,9 +83,9 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
 
     const copy = document.createElement('span');
     const title = document.createElement('strong');
-    title.textContent = line.title;
+    title.textContent = displayText(line.title);
     const variation = document.createElement('small');
-    variation.textContent = line.variation;
+    variation.textContent = displayText(line.variation);
     copy.append(title, variation);
 
     const pill = document.createElement('span');
@@ -109,9 +114,9 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
 
     const copy = document.createElement('span');
     const title = document.createElement('strong');
-    title.textContent = response.label;
+    title.textContent = displayText(response.label);
     const detail = document.createElement('small');
-    detail.textContent = `${route.opponentLabel} → ${route.responseLabel}`;
+    detail.textContent = displayText(`${route.opponentLabel} → ${route.responseLabel}`);
     copy.append(title, detail);
 
     const pill = document.createElement('span');
@@ -146,9 +151,9 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
       tierHeader.className = 'curriculum-tier-header';
       const tierCopy = document.createElement('div');
       const tierTitle = document.createElement('h3');
-      tierTitle.textContent = tier.label;
+      tierTitle.textContent = displayText(tier.label);
       const tierDescription = document.createElement('p');
-      tierDescription.textContent = tier.description;
+      tierDescription.textContent = displayText(tier.description);
       tierCopy.append(tierTitle, tierDescription);
       tierHeader.append(tierCopy);
 
@@ -171,16 +176,16 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
         familyHeader.className = 'curriculum-family-header';
         const familyCopy = document.createElement('div');
         const familyTitle = document.createElement('h4');
-        familyTitle.textContent = family.title;
+        familyTitle.textContent = displayText(family.title);
         const role = document.createElement('span');
         role.className = 'curriculum-role';
-        role.textContent = family.role;
+        role.textContent = displayText(family.role);
         familyCopy.append(familyTitle, role);
 
         const evidence = document.createElement('span');
         evidence.className = 'curriculum-evidence';
-        evidence.textContent = family.evidence?.label ?? '';
-        if (family.evidence?.detail) evidence.title = family.evidence.detail;
+        evidence.textContent = displayText(family.evidence?.label ?? '');
+        if (family.evidence?.detail) evidence.title = displayText(family.evidence.detail);
         familyHeader.append(familyCopy, evidence);
         familyCard.append(familyHeader);
 
@@ -189,11 +194,11 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
         const recognition = document.createElement('p');
         const recognitionLabel = document.createElement('strong');
         recognitionLabel.textContent = 'Recognize: ';
-        recognition.append(recognitionLabel, document.createTextNode(family.recognition ?? ''));
+        recognition.append(recognitionLabel, document.createTextNode(displayText(family.recognition)));
         const plan = document.createElement('p');
         const planLabel = document.createElement('strong');
         planLabel.textContent = 'Plan: ';
-        plan.append(planLabel, document.createTextNode(family.plan ?? ''));
+        plan.append(planLabel, document.createTextNode(displayText(family.plan)));
         teaching.append(recognition, plan);
         familyCard.append(teaching);
 
