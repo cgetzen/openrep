@@ -47,10 +47,15 @@ def ensure_hint_off(page):
     expect(hint).to_have_text('Hint: off')
 
 
+def assert_cue_only(prompt):
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
+
+
 def assert_stable_prompt_after_c6(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
-    expect(prompt).to_contain_text('Your move as Black')
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
     expect(prompt).not_to_contain_text('Develop outside the pawn chain')
     expect(prompt).not_to_contain_text('Find c6')
@@ -59,13 +64,13 @@ def assert_stable_prompt_after_c6(page):
     click_move(page, 'c7c6')
 
     expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
-    expect(prompt).to_contain_text('Your move as Black')
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
     expect(prompt).not_to_contain_text('Opponent move')
     expect(prompt).not_to_contain_text('Watch White’s choice')
 
     release_opponent_autoplay(page)
-    expect(prompt).to_contain_text('Your move as Black')
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
     expect(prompt).not_to_contain_text('Find d5')
 
@@ -99,7 +104,6 @@ def run():
             assert_stable_prompt_after_c6(page)
 
             page.get_by_role('button', name='Practice').click()
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert_stable_prompt_after_c6(page)
 
             browser.close()
@@ -110,4 +114,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('prompt flicker and decision cue e2e passed')
+    print('cue-only prompt flicker regression passed')
