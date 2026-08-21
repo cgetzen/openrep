@@ -1,3 +1,5 @@
+import { normalizeTeachingProse } from './teaching-copy.js';
+
 const REQUIRED_FIELDS = Object.freeze([
   'position',
   'plan',
@@ -11,6 +13,10 @@ function requireText(value, label) {
   return text;
 }
 
+function requireTeachingText(value, label) {
+  return normalizeTeachingProse(requireText(value, label));
+}
+
 export function firstRepertoireDecisionPly(courseSide) {
   if (courseSide === 'w') return 0;
   if (courseSide === 'b') return 1;
@@ -19,7 +25,8 @@ export function firstRepertoireDecisionPly(courseSide) {
 
 export function formatBranchBriefing(teaching) {
   if (!teaching) return null;
-  return `${teaching.position} ${teaching.plan} ${teaching.opponentPlan} Key idea: ${teaching.memoryHook}`;
+  const body = `${teaching.position} ${teaching.plan} ${teaching.opponentPlan}`;
+  return `${body}\nKey idea: ${teaching.memoryHook}`;
 }
 
 export class BranchTeachingIndex {
@@ -46,7 +53,7 @@ export class BranchTeachingIndex {
 
       const teaching = { lineId, source: requireText(entry.source, `${lineId}.source`) };
       for (const field of REQUIRED_FIELDS) {
-        teaching[field] = requireText(entry[field], `${lineId}.${field}`);
+        teaching[field] = requireTeachingText(entry[field], `${lineId}.${field}`);
       }
       this.byLineId.set(lineId, Object.freeze(teaching));
     }
