@@ -72,6 +72,7 @@ def browser_bundle() -> str:
         ROOT / 'src/branch-teaching.js',
         ROOT / 'src/coaching-trainer.js',
         ROOT / 'src/practice-trainer.js',
+        ROOT / 'src/automatic-spaced-trainer.js',
     ]
     chunks = []
     for path in paths:
@@ -81,8 +82,8 @@ def browser_bundle() -> str:
         chunks.append(source)
     chunks.append(
         "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions, branchTeaching: caroKannBranchTeaching };\n"
-        "window.__OpenRep = { OpenRepTrainerApp, caroKann: course };\n"
-        "new OpenRepTrainerApp(document.querySelector('#app'), course).mount();"
+        "window.__OpenRep = { AutomaticSpacedTrainerApp, caroKann: course };\n"
+        "new AutomaticSpacedTrainerApp(document.querySelector('#app'), course).mount();"
     )
     return '\n\n'.join(chunks)
 
@@ -134,7 +135,7 @@ def restore_app(page, injected: bool):
     if injected:
         page.evaluate("""
           document.querySelector('#app').replaceChildren();
-          new window.__OpenRep.OpenRepTrainerApp(
+          new window.__OpenRep.AutomaticSpacedTrainerApp(
             document.querySelector('#app'), window.__OpenRep.caroKann
           ).mount();
         """)
@@ -254,7 +255,7 @@ def run():
             expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
             results.append('supports drag moves and read-only ArrowLeft/ArrowRight history review')
 
-            # Complete line 1 once, grade it, then prove browser persistence.
+            # Complete line 1 once, schedule it automatically, then prove browser persistence.
             page.locator('#reset-line').click()
             first_line = get_course_lines(page, injected)[0]
             for ply in range(1, len(first_line['moves']), 2):
@@ -265,11 +266,11 @@ def run():
             expect_decision_prompt(page)
             expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(page.locator('#feedback')).to_contain_text('clean rep')
-            page.get_by_role('button', name='Good').click()
+            expect(page.locator('#grading')).to_be_hidden()
             assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
             restore_app(page, injected)
             expect(page.locator('#course-progress')).to_contain_text('1/12')
-            results.append('persists scheduling/progress through a full app restore')
+            results.append('persists automatic scheduling/progress through a full app restore')
 
             # Reset and prove every branch through the real interactive board.
             page.get_by_role('button', name='Reset local progress').click()
@@ -287,7 +288,7 @@ def run():
                 expect_decision_prompt(page)
                 expect(page.locator('#prompt')).not_to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
-                page.get_by_role('button', name='Good').click()
+                expect(page.locator('#grading')).to_be_hidden()
             expect(page.locator('#course-progress')).to_contain_text('12/12')
             results.append('completes all 12 Caro-Kann branches through board interactions')
 
