@@ -53,6 +53,30 @@ export function curriculumLineOrder(lines, curriculum) {
   return ordered;
 }
 
+export function curriculumTeachingUnits(course, curriculum) {
+  const lineIds = new Set((course?.lines ?? []).map(line => line.id));
+  const responseIds = new Set((course?.responses ?? []).map(response => response.id));
+  const units = [];
+  const seen = new Set();
+
+  for (const family of orderedCurriculumFamilies(curriculum)) {
+    for (const lineId of family.lineIds ?? []) {
+      const key = `line:${lineId}`;
+      if (!lineIds.has(lineId) || seen.has(key)) continue;
+      seen.add(key);
+      units.push(Object.freeze({ teachingUnitId: key, kind: 'line', id: lineId, familyId: family.id }));
+    }
+    for (const responseId of family.responseIds ?? []) {
+      const key = `response:${responseId}`;
+      if (!responseIds.has(responseId) || seen.has(key)) continue;
+      seen.add(key);
+      units.push(Object.freeze({ teachingUnitId: key, kind: 'response', id: responseId, familyId: family.id }));
+    }
+  }
+
+  return Object.freeze(units);
+}
+
 export function curriculumConceptsForMember(curriculum, kind, id) {
   const field = memberField(kind);
   if (!field || !id) return [];
