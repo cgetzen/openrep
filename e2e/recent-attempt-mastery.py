@@ -32,9 +32,9 @@ def line_progress(recent_attempts):
 
 
 def complete_current_line(page):
-    grading = page.locator('#grading')
+    feedback = page.locator('#feedback')
     for _ in range(24):
-        if grading.is_visible():
+        if 'Line complete' in feedback.inner_text():
             return
 
         hint_from = page.locator('.square.hint-from')
@@ -43,7 +43,7 @@ def complete_current_line(page):
         expect(hint_to).to_have_count(1)
         uci = f"{hint_from.get_attribute('data-square')}{hint_to.get_attribute('data-square')}"
         click_move(page, uci)
-        expect(page.locator('#feedback')).not_to_have_class(re.compile(r'\bwrong\b'))
+        expect(feedback).not_to_have_class(re.compile(r'\bwrong\b'))
 
     raise AssertionError('Line did not complete within 24 user moves')
 
