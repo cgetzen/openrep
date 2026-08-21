@@ -8,6 +8,8 @@ from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 
+from run import QuietHandler
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
