@@ -1,7 +1,10 @@
-import { AutomaticSpacedTrainerApp } from './automatic-spaced-trainer.js?v=history-attempt-parity-v3';
+import { LessonSessionTrainerApp } from './lesson-session-trainer.js?v=lesson-session-v1';
 import { lineLearningStatus } from './progress.js';
 import { normalizeTeachingProse } from './teaching-copy.js';
-import { curriculumTeachingUnitPresentation } from './curriculum.js?v=teaching-unit-presentation-v1';
+import {
+  curriculumTeachingUnitPresentation,
+  curriculumTeachingUnits
+} from './curriculum.js?v=lesson-session-v1';
 
 function responseLearned(progress, responseId) {
   return (progress?.learnedResponses ?? []).includes(responseId);
@@ -11,7 +14,7 @@ function displayText(value) {
   return normalizeTeachingProse(value);
 }
 
-export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
+export class CurriculumTrainerApp extends LessonSessionTrainerApp {
   renderShell() {
     super.renderShell();
     const map = this.root.querySelector('.course-map');
@@ -30,6 +33,45 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     }
   }
 
+  teachingUnits() {
+    return curriculumTeachingUnits(this.course, this.course.curriculum);
+  }
+
+  isCurrentTeachingUnit(kind, id) {
+    const current = this.lessonSession?.teachingUnit;
+    return current?.kind === kind && current?.id === id;
+  }
+
+  startCurriculumTeachingUnit(unit) {
+    if (!unit) return;
+    this.mode = 'learn';
+    if (unit.kind === 'line') {
+      const index = this.course.lines.findIndex(line => line.id === unit.id);
+      if (index >= 0) this.startLine(index);
+      return;
+    }
+    if (unit.kind === 'response') this.startCurriculumResponse(unit.id);
+  }
+
+  navigateLesson(delta) {
+    if (this.mode === 'practice') {
+      super.navigateLesson(delta);
+      return;
+    }
+    if (this.hasParentLesson()) return;
+
+    const units = this.teachingUnits();
+    const current = this.lessonSession?.teachingUnit;
+    const index = units.findIndex(unit => unit.kind === current?.kind && unit.id === current?.id);
+    if (index < 0 || units.length === 0) {
+      super.navigateLesson(delta);
+      return;
+    }
+
+    const next = (index + delta + units.length) % units.length;
+    this.startCurriculumTeachingUnit(units[next]);
+  }
+
   responseTeachingUnitPresentation(responseId) {
     const response = this.repertoire.responseById?.get(responseId);
     if (!response) return null;
@@ -43,6 +85,14 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
 
   refresh() {
     super.refresh();
+
+    if (this.mode === 'learn' && !this.hasParentLesson()) {
+      this.root.querySelector('#prev-line').textContent = '← Previous lesson';
+      if (!this.isLearnResponseLesson() || this.lineFinished) {
+        this.root.querySelector('#next-line').textContent = 'Next lesson →';
+      }
+    }
+
     if (!this.isLearnResponseLesson()) return;
 
     const presentation = this.responseTeachingUnitPresentation(this.sessionRoute?.responseId);
@@ -70,12 +120,14 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     const response = this.repertoire.responseById?.get(responseId);
     if (!response?.teachingOwnerLineId) return;
     const ownerIndex = this.course.lines.findIndex(line => line.id === response.teachingOwnerLineId);
-    if (ownerIndex < 0) return;
+    const route = this.curriculumResponseRoute(responseId);
+    if (ownerIndex < 0 || !route) return;
 
     this.mode = 'learn';
-    this.startLine(ownerIndex);
-    const route = this.curriculumResponseRoute(responseId);
-    if (route) this.startResponseLesson(route.id);
+    this.startResponseRoute(route, {
+      lineIndex: ownerIndex,
+      origin: 'curriculum'
+    });
   }
 
   familyProgress(family) {
@@ -103,7 +155,7 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     const status = lineLearningStatus(this.progress.lines[line.id], discovered);
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `line-item curriculum-line-item ${index === this.lineIndex ? 'current' : ''}`;
+    button.className = `line-item curriculum-line-item ${this.isCurrentTeachingUnit('line', line.id) ? 'current' : ''}`;
     button.dataset.lineIndex = String(index);
 
     const number = document.createElement('span');
@@ -135,7 +187,7 @@ export class CurriculumTrainerApp extends AutomaticSpacedTrainerApp {
     const learned = responseLearned(this.progress, responseId);
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'line-item curriculum-response-item';
+    button.className = `line-item curriculum-response-item ${this.isCurrentTeachingUnit('response', responseId) ? 'current' : ''}`;
     button.dataset.curriculumResponse = responseId;
 
     const marker = document.createElement('span');
