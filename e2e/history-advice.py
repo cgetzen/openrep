@@ -18,28 +18,34 @@ def ensure_hint_off(page):
     expect(hint).to_have_text('Hint: off')
 
 
+def assert_cue_only(prompt):
+    expect(prompt.locator('strong')).to_have_count(0)
+    expect(prompt).not_to_contain_text('Your move as Black')
+
+
 def assert_history_shows_advice(page):
     ensure_hint_off(page)
     prompt = page.locator('#prompt')
     history_status = page.locator('#history-status')
 
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
     click_move(page, 'c7c6')
     wait_for_last_move(page, 'd2d4')
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 2 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
-    expect(prompt.locator('strong')).to_have_count(0)
+    assert_cue_only(prompt)
     expect(prompt).not_to_contain_text('Advice for')
     expect(prompt).not_to_contain_text('Reviewing this route')
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 1 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
-    expect(prompt.locator('strong')).to_have_count(0)
-    expect(prompt).not_to_contain_text('Your move as Black')
+    assert_cue_only(prompt)
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 0 / 3')
@@ -53,7 +59,7 @@ def assert_history_shows_advice(page):
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     page.locator('#history-forward').click()
     expect(history_status).to_have_text('Current position')
-    expect(prompt).to_contain_text('Your move as Black')
+    assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
 
@@ -86,7 +92,6 @@ def run():
             assert_history_shows_advice(page)
 
             page.get_by_role('button', name='Practice').click()
-            expect(page.locator('#prompt')).to_contain_text('Your move as Black')
             assert_history_shows_advice(page)
 
             browser.close()
@@ -97,4 +102,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('quiet history advice Learn/Practice regression passed')
+    print('cue-only history advice Learn/Practice regression passed')
