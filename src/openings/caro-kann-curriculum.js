@@ -1,6 +1,11 @@
-const TIER_ORDER = ['core', 'important', 'sideline', 'on-demand'];
-
 export const caroKannCurriculum = {
+  schemaVersion: 1,
+  courseId: 'caro-kann-black',
+  presentation: {
+    eyebrow: 'Curriculum map',
+    title: 'Coverage-driven repertoire',
+    summary: 'Core first, then common coverage gaps. Rare sidelines and alternative repertoire systems stay available without crowding the primary path.'
+  },
   evidence: {
     source: '365Chess with Lichess/opening-theory cross-check',
     snapshotDate: '2026-08-21',
@@ -162,77 +167,35 @@ export const caroKannCurriculum = {
         detail: 'The existing Nf3, h4, and Nc3 leaves cover only about 70% of sampled replies after 3...Bf5, so this stays available without defining the core curriculum.'
       }
     }
+  ],
+  concepts: [
+    {
+      id: 'central-counterplay',
+      title: 'Central counterplay',
+      description: 'Recognize when Black should challenge White’s center with ...d5 or ...c5 rather than react on the flank.',
+      lineIds: ['advance-early-c5', 'advance-main', 'advance-tal', 'advance-bayonet', 'quiet-d3'],
+      responseIds: ['advance-c5-dxc5', 'advance-c5-nf3', 'accelerated-panov-c4']
+    },
+    {
+      id: 'transposition-recognition',
+      title: 'Transposition recognition',
+      description: 'Different move orders can reach the same decision position and should share the same chess identity.',
+      lineIds: ['classical-main', 'two-knights', 'early-nf3'],
+      responseIds: ['classical-nd2-transposition']
+    },
+    {
+      id: 'exchange-structures',
+      title: 'Exchange structures',
+      description: 'Distinguish symmetrical Exchange play from Panov/IQP structures by White’s c-pawn commitment.',
+      lineIds: ['exchange-main', 'panov-main', 'early-nf3'],
+      responseIds: ['exchange-nf3', 'exchange-c3', 'accelerated-panov-c4']
+    },
+    {
+      id: 'iqp-play',
+      title: 'Isolated queen pawn play',
+      description: 'Recognize when c4 and central exchanges lead to IQP positions and active piece play.',
+      lineIds: ['panov-main'],
+      responseIds: ['accelerated-panov-c4']
+    }
   ]
 };
-
-export function orderedCurriculumFamilies(curriculum = caroKannCurriculum) {
-  const rank = new Map(TIER_ORDER.map((tier, index) => [tier, index]));
-  return [...(curriculum?.families ?? [])].sort((a, b) =>
-    (rank.get(a.tier) ?? TIER_ORDER.length) - (rank.get(b.tier) ?? TIER_ORDER.length)
-  );
-}
-
-export function curriculumLineOrder(lines, curriculum = caroKannCurriculum) {
-  const lineById = new Map((lines ?? []).map(line => [line.id, line]));
-  const ordered = [];
-  const seen = new Set();
-
-  for (const family of orderedCurriculumFamilies(curriculum)) {
-    for (const lineId of family.lineIds ?? []) {
-      const line = lineById.get(lineId);
-      if (!line || seen.has(lineId)) continue;
-      seen.add(lineId);
-      ordered.push(line);
-    }
-  }
-
-  for (const line of lines ?? []) {
-    if (seen.has(line.id)) continue;
-    seen.add(line.id);
-    ordered.push(line);
-  }
-
-  return ordered;
-}
-
-export function validateCaroKannCurriculum(course, curriculum = caroKannCurriculum) {
-  const tiers = new Set((curriculum?.tiers ?? []).map(tier => tier.id));
-  const lineIds = new Set((course?.lines ?? []).map(line => line.id));
-  const responseIds = Array.isArray(course?.responses)
-    ? new Set(course.responses.map(response => response.id))
-    : null;
-  const assignedLines = new Set();
-
-  for (const family of curriculum?.families ?? []) {
-    if (!family.id || !family.title || !tiers.has(family.tier)) {
-      throw new Error(`Invalid curriculum family: ${family?.id ?? 'unknown'}`);
-    }
-    for (const lineId of family.lineIds ?? []) {
-      if (!lineIds.has(lineId)) throw new Error(`Curriculum family ${family.id} references unknown line ${lineId}`);
-      if (assignedLines.has(lineId)) throw new Error(`Curriculum line ${lineId} is assigned more than once`);
-      assignedLines.add(lineId);
-    }
-    if (responseIds) {
-      for (const responseId of family.responseIds ?? []) {
-        if (!responseIds.has(responseId)) {
-          throw new Error(`Curriculum family ${family.id} references unknown response ${responseId}`);
-        }
-      }
-    }
-  }
-
-  for (const lineId of lineIds) {
-    if (!assignedLines.has(lineId)) throw new Error(`Curriculum does not classify line ${lineId}`);
-  }
-
-  return true;
-}
-
-export function buildCaroKannCurriculumCourse(course, curriculum = caroKannCurriculum) {
-  validateCaroKannCurriculum(course, curriculum);
-  return {
-    ...course,
-    lines: [...(course.lines ?? [])],
-    curriculum
-  };
-}
