@@ -20,6 +20,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Fetch Stockfish 18 browser engine
         run: bash scripts/fetch-stockfish.sh
+      - run: npm run repertoire:check
       - run: npm test
       - run: npm run test:e2e
 

@@ -1,5 +1,6 @@
 import { OpenRepTrainerApp } from './practice-trainer.js?v=recent-attempt-mastery-v1';
 import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v2';
+import { miniChessToFen } from './position-fen.js';
 
 function historicalFeedbackRoot(root) {
   return {
@@ -28,6 +29,50 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
     if (!grading) return;
     grading.classList.add('hidden');
     grading.setAttribute('aria-hidden', 'true');
+  }
+
+  expectedDecisionMoveAtPly(ply) {
+    if (!Number.isInteger(ply) || ply < 0) return null;
+    return this.sessionRoute?.moves?.[ply] ?? null;
+  }
+
+  historicalReplayContext() {
+    const replay = super.historicalReplayContext();
+    if (!replay) return null;
+
+    const expected = replay.chess.turn() === this.course.side
+      ? this.expectedDecisionMoveAtPly(this.viewPly)
+      : null;
+    const interactive = Boolean(
+      expected
+      && this.viewPly < this.ply
+      && replay.chess.turn() === this.course.side
+    );
+
+    // Board/history reconstruction may use the move the learner actually
+    // played. Attempt semantics must come from the canonical route decision.
+    return {
+      ...replay,
+      playedMove: replay.expected,
+      expected,
+      interactive
+    };
+  }
+
+  displayedDecisionContext() {
+    const context = super.displayedDecisionContext();
+    if (!context) return null;
+
+    const expected = this.expectedDecisionMoveAtPly(context.decisionPly);
+    if (!expected) return null;
+    if (expected === context.expected) return context;
+
+    const cue = context.teachingKind === 'branch-briefing'
+      ? context.cue
+      : this.moveTheory.cueAt(miniChessToFen(context.chess), expected);
+    if (!cue) return null;
+
+    return { ...context, expected, cue };
   }
 
   historicalAttemptProjection(replay) {

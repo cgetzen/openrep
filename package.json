@@ -6,8 +6,10 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "stockfish:fetch": "bash scripts/fetch-stockfish.sh",
+    "repertoire:generate": "node content-generator/generate-caro-kann.mjs",
+    "repertoire:check": "node content-generator/generate-caro-kann.mjs --check",
     "serve": "npm run stockfish:fetch && python3 -m http.server 4173",
-    "test:e2e": "python3 e2e/run.py && python3 e2e/repertoire-feedback.py && python3 e2e/practice-spaced.py && python3 e2e/recent-attempt-mastery.py && python3 e2e/practice-route-label.py && python3 e2e/practice-branch-identity.py && python3 e2e/opponent-deviations.py && python3 e2e/hint-toggle.py && python3 e2e/terminal-move-theory.py && python3 e2e/prompt-flicker.py && python3 e2e/history-advice.py && python3 e2e/history-replay.py && python3 e2e/curriculum-move-copy.py",
-    "check": "npm test && npm run test:e2e"
+    "test:e2e": "python3 e2e/run.py && python3 e2e/repertoire-feedback.py && python3 e2e/practice-spaced.py && python3 e2e/recent-attempt-mastery.py && python3 e2e/practice-route-label.py && python3 e2e/practice-branch-identity.py && python3 e2e/opponent-deviations.py && python3 e2e/hint-toggle.py && python3 e2e/terminal-move-theory.py && python3 e2e/generated-repertoire.py && python3 e2e/prompt-flicker.py && python3 e2e/history-advice.py && python3 e2e/history-replay.py && python3 e2e/curriculum-move-copy.py",
+    "check": "npm run repertoire:check && npm test && npm run test:e2e"
   }
 }

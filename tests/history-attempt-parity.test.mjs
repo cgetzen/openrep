@@ -4,8 +4,15 @@ import assert from 'node:assert/strict';
 import { AutomaticSpacedTrainerApp } from '../src/automatic-spaced-trainer.js';
 import { CoachingTrainerApp } from '../src/coaching-trainer.js?v=history-advice-v2';
 import { MiniChess } from '../src/mini-chess.js';
+import { MoveTheoryIndex } from '../src/move-theory.js';
 import { RepertoireMoveIndex } from '../src/repertoire-moves.js';
 import { caroKann } from '../src/openings/caro-kann.js';
+import { caroKannResponses } from '../src/openings/caro-kann-responses.js';
+import { caroKannMoveTheory, caroKannLessonDecisions } from '../src/openings/caro-kann-theory.js';
+import {
+  applyGeneratedLessonAlternatives,
+  caroKannGeneratedMoveTheory
+} from '../src/openings/caro-kann-generated-theory.js';
 
 class FakeFeedback {
   constructor() {
@@ -133,6 +140,68 @@ function historicalAttemptHarness(line) {
   return { app, liveFeedback, historyFeedback };
 }
 
+function generatedCourse() {
+  return {
+    ...caroKann,
+    responses: caroKannResponses,
+    moveTheory: [...caroKannMoveTheory, ...caroKannGeneratedMoveTheory],
+    lessonDecisions: applyGeneratedLessonAlternatives(caroKannLessonDecisions)
+  };
+}
+
+function terminalHistoryHarness(playedMove) {
+  const course = generatedCourse();
+  const line = course.lines.find(candidate => candidate.id === 'hillbilly');
+  const liveFeedback = new FakeFeedback();
+  const historyFeedback = new FakeFeedback();
+  historyFeedback.hidden = true;
+  const playedMoves = [...line.moves];
+  playedMoves[playedMoves.length - 1] = playedMove;
+
+  const app = Object.create(AutomaticSpacedTrainerApp.prototype);
+  Object.assign(app, {
+    root: {
+      querySelector(selector) {
+        if (selector === '#feedback') return liveFeedback;
+        if (selector === '#history-feedback') return historyFeedback;
+        return null;
+      }
+    },
+    course,
+    line,
+    sessionRoute: {
+      kind: 'canonical',
+      targetLineId: line.id,
+      label: line.title,
+      moves: [...line.moves],
+      notes: { ...(line.notes ?? {}) }
+    },
+    repertoire: new RepertoireMoveIndex(course),
+    moveTheory: new MoveTheoryIndex(course),
+    chess: chessAt(playedMoves, playedMoves.length),
+    ply: line.moves.length,
+    viewPly: line.moves.length - 1,
+    lineFinished: true,
+    practiceCaughtUp: false,
+    mode: 'learn',
+    completedTerminalMove: { ply: line.moves.length - 1, move: playedMove },
+    wrongMoveEvaluationRequest: 0,
+    evaluator: null,
+    evaluationBar: null,
+    board: boardStub(),
+    mistakesThisLine: 0,
+    refreshHistoryView() {},
+    queueHistoricalOpponentReplay() {},
+    refreshBoardState() {},
+    currentRouteNote(ply = this.ply) { return line.notes?.[ply] ?? ''; },
+    recordTrainingMistake() {
+      throw new Error('history projection must suppress training mutation');
+    }
+  });
+
+  return { app, line, liveFeedback, historyFeedback };
+}
+
 async function flushPromises() {
   await Promise.resolve();
   await Promise.resolve();
@@ -166,4 +235,38 @@ test('1→2→X and 1→2→3→2→X use identical learner-facing wrong-move fe
   } finally {
     globalThis.document = originalDocument;
   }
+});
+
+test('history keeps the canonical primary move separate from an accepted move that was actually played', () => {
+  const { app } = terminalHistoryHarness('c8g4');
+
+  const replay = app.historicalReplayContext();
+  const decision = app.displayedDecisionContext();
+
+  assert.equal(replay.playedMove, 'c8g4');
+  assert.equal(replay.expected, 'c8f5');
+  assert.equal(decision.expected, 'c8f5');
+  assert.match(decision.cue, /light bishop/i);
+});
+
+test('primary terminal move stays accepted after rewind/forward when the prior completion used an alternative', () => {
+  const { app, historyFeedback } = terminalHistoryHarness('c8g4');
+
+  app.replayHistoricalMove('c8', 'f5');
+
+  assert.equal(app.viewPly, null);
+  assert.doesNotMatch(historyFeedback.textContent, /not the move this line teaches/i);
+  assert.doesNotMatch(historyFeedback.textContent, /repertoire choice here/i);
+});
+
+test('accepted terminal alternative stays accepted after rewind when the prior completion used the primary move', () => {
+  const { app, historyFeedback } = terminalHistoryHarness('c8f5');
+
+  app.replayHistoricalMove('c8', 'g4');
+
+  assert.equal(app.viewPly, 11);
+  assert.match(historyFeedback.textContent, /Bg4 also works here/i);
+  assert.doesNotMatch(historyFeedback.textContent, /not the move this line teaches/i);
+  assert.deepEqual(app.completedTerminalMove, { ply: 11, move: 'c8f5' });
+  assert.equal(app.mistakesThisLine, 0);
 });
