@@ -53,7 +53,7 @@ def run():
             expect(page.locator('#line-counter')).to_have_text('LEARN · IMPORTANT · RESPONSE')
             expect(page.locator('.lesson-card')).not_to_contain_text('Another good move')
             expect(page.locator('.lesson-card')).not_to_contain_text('from Advance — Immediate counterplay')
-            expect(response).to_have_class(lambda value: 'current' in value)
+            assert 'current' in (response.get_attribute('class') or '')
 
             wait_for_last_move(page, 'e2e4')
             wait_for_expected_move(page, 'c7c6')
