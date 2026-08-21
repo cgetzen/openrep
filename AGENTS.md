@@ -71,10 +71,12 @@ Learn and Practice should share trainer behavior and UI by default. Differences 
 History navigation changes the viewed chess position without changing the underlying lesson/session state. Treat rewind/forward as a projection of the session at `displayPly`, not as either a full application refresh or a frozen copy of the current-position UI.
 
 - Every position-dependent surface must project from the position currently shown on the board. This includes advice, move feedback/explanations, opponent alternatives, response/completion teaching visibility, evaluation, and future position-context UI.
+- Teaching surfaces that describe one repertoire decision must share one explicit decision-context object. Advice and opponent alternatives must never independently infer their own ply/turn context.
+- A decision context advances when the opponent move establishes the next repertoire decision and remains fixed through the repertoire reply. Therefore advice and “Other good moves” change together on the opponent move and stay together across the repertoire move.
 - A feedback panel may preserve the live training result internally while history is open, but the visible historical feedback must describe the most recent repertoire-side move applicable at the viewed position. Returning to the current position restores the live result.
 - Session-owned state must not be rewritten by history navigation. Progress, grading state, scheduling, selected lesson/route, mistakes, and learned-response state remain unchanged while their position-dependent presentation may be hidden or projected.
 - History navigation must use an explicit projection path rather than the full trainer `refresh()`. New position-context UI must opt into that projection path.
-- Regression coverage must verify multiple right-panel surfaces at multiple plies, including a case where historical move feedback changes from one repertoire move to an earlier one.
+- Regression coverage must verify multiple right-panel surfaces at multiple plies, including a case where historical move feedback changes from one repertoire move to an earlier one and a case where all decision-context teaching surfaces cross the same ply boundary atomically.
 
 ## 4. Architecture invariants
 
