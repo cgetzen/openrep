@@ -3,18 +3,19 @@ import assert from 'node:assert/strict';
 
 import { MiniChess } from '../src/mini-chess.js';
 import { miniChessToFen } from '../src/position-fen.js';
+import {
+  buildCurriculumCourse,
+  curriculumConceptsForMember,
+  curriculumLineOrder,
+  validateCurriculum
+} from '../src/curriculum.js';
 import { normalizePositionKey, RepertoireMoveIndex } from '../src/repertoire-moves.js';
 import { caroKann } from '../src/openings/caro-kann.js';
 import { caroKannResponses } from '../src/openings/caro-kann-responses.js';
-import {
-  buildCaroKannCurriculumCourse,
-  caroKannCurriculum,
-  curriculumLineOrder,
-  validateCaroKannCurriculum
-} from '../src/openings/caro-kann-curriculum.js';
+import { caroKannCurriculum } from '../src/openings/caro-kann-curriculum.js';
 
 function buildCourse() {
-  return buildCaroKannCurriculumCourse({
+  return buildCurriculumCourse({
     ...caroKann,
     responses: caroKannResponses
   }, caroKannCurriculum);
@@ -28,7 +29,7 @@ function positionAfter(moves) {
 
 test('curriculum classifies every stable line exactly once while keeping stored line identity/order unchanged', () => {
   const course = buildCourse();
-  assert.equal(validateCaroKannCurriculum(course, caroKannCurriculum), true);
+  assert.equal(validateCurriculum(course, caroKannCurriculum), true);
   assert.deepEqual(
     course.lines.map(line => line.id),
     caroKann.lines.map(line => line.id)
@@ -41,6 +42,64 @@ test('curriculum classifies every stable line exactly once while keeping stored 
   const assigned = caroKannCurriculum.families.flatMap(family => family.lineIds ?? []);
   assert.equal(assigned.length, caroKann.lines.length);
   assert.equal(new Set(assigned).size, caroKann.lines.length);
+});
+
+test('primary families are exclusive while concepts can overlap across teaching dimensions', () => {
+  const course = buildCourse();
+  assert.equal(validateCurriculum(course, caroKannCurriculum), true);
+
+  const earlyNf3Concepts = curriculumConceptsForMember(caroKannCurriculum, 'line', 'early-nf3').map(concept => concept.id);
+  assert.deepEqual(earlyNf3Concepts.sort(), ['exchange-structures', 'transposition-recognition']);
+
+  const acceleratedConcepts = curriculumConceptsForMember(caroKannCurriculum, 'response', 'accelerated-panov-c4').map(concept => concept.id);
+  assert.deepEqual(acceleratedConcepts.sort(), ['central-counterplay', 'exchange-structures', 'iqp-play']);
+});
+
+test('generic curriculum validation is not tied to a Caro-Kann course', () => {
+  const course = {
+    id: 'sample-course',
+    lines: [{ id: 'line-a' }, { id: 'line-b' }],
+    responses: [{ id: 'response-a' }]
+  };
+  const curriculum = {
+    schemaVersion: 1,
+    courseId: 'sample-course',
+    tiers: [{ id: 'primary', label: 'Primary' }],
+    families: [
+      { id: 'family-a', tier: 'primary', title: 'A', lineIds: ['line-a'], responseIds: ['response-a'] },
+      { id: 'family-b', tier: 'primary', title: 'B', lineIds: ['line-b'], responseIds: [] }
+    ],
+    concepts: [
+      { id: 'shared-pattern', title: 'Shared pattern', lineIds: ['line-a', 'line-b'], responseIds: ['response-a'] }
+    ]
+  };
+
+  assert.equal(validateCurriculum(course, curriculum), true);
+  assert.deepEqual(curriculumLineOrder(course.lines, curriculum).map(line => line.id), ['line-a', 'line-b']);
+  assert.deepEqual(curriculumConceptsForMember(curriculum, 'line', 'line-b').map(concept => concept.id), ['shared-pattern']);
+});
+
+test('generic curriculum validation rejects duplicate primary ownership but permits concept overlap', () => {
+  const course = {
+    id: 'sample-course',
+    lines: [{ id: 'line-a' }],
+    responses: []
+  };
+  const curriculum = {
+    schemaVersion: 1,
+    courseId: 'sample-course',
+    tiers: [{ id: 'primary', label: 'Primary' }],
+    families: [
+      { id: 'family-a', tier: 'primary', title: 'A', lineIds: ['line-a'] },
+      { id: 'family-b', tier: 'primary', title: 'B', lineIds: ['line-a'] }
+    ],
+    concepts: [
+      { id: 'concept-a', title: 'A concept', lineIds: ['line-a'] },
+      { id: 'concept-b', title: 'Another concept', lineIds: ['line-a'] }
+    ]
+  };
+
+  assert.throws(() => validateCurriculum(course, curriculum), /assigned to both family-a and family-b/);
 });
 
 test('Core and Important tiers encode the intended practical coverage thresholds', () => {
