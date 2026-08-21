@@ -45,6 +45,18 @@ export function resolvePracticeSessionRoute(sourceLine, candidateRoute, lines, c
 }
 
 export class OpenRepTrainerApp extends CoachingTrainerApp {
+  renderShell() {
+    super.renderShell();
+    const liveFeedback = this.root.querySelector('#feedback');
+    if (!liveFeedback) return;
+
+    const historyFeedback = document.createElement('div');
+    historyFeedback.id = 'history-feedback';
+    historyFeedback.className = 'feedback hidden';
+    historyFeedback.setAttribute('aria-hidden', 'true');
+    liveFeedback.after(historyFeedback);
+  }
+
   displayedDecisionAdvice() {
     if (this.practiceCaughtUp || this.sessionRoute?.kind === 'response') return null;
 
@@ -101,6 +113,167 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     const text = document.createElement('span');
     text.textContent = `${decision.cue}${clue}`;
     prompt.append(text);
+  }
+
+  displayedOpponentOptions() {
+    if (this.mode !== 'learn' || this.sessionRoute?.kind !== 'canonical') return [];
+
+    const displayPly = this.viewPly === null ? this.ply : this.viewPly;
+    const { chess: displayedChess } = this.positionAtPly(displayPly);
+    let opponentDecisionPly = null;
+
+    if (displayedChess.turn() !== this.course.side) {
+      opponentDecisionPly = displayPly;
+    } else if (displayPly > 0) {
+      const { chess: previousChess } = this.positionAtPly(displayPly - 1);
+      if (previousChess.turn() !== this.course.side) opponentDecisionPly = displayPly - 1;
+    }
+
+    return opponentDecisionPly === null
+      ? []
+      : this.repertoire.opponentAlternatives(this.line, opponentDecisionPly);
+  }
+
+  renderOpponentOptions() {
+    if (this.viewPly === null) {
+      this.historyOpponentOptions = null;
+      super.renderOpponentOptions();
+      return;
+    }
+
+    const panel = this.root.querySelector('#opponent-options');
+    const routes = this.displayedOpponentOptions();
+    this.historyOpponentOptions = routes;
+    const visible = routes.length > 0;
+    panel.classList.toggle('hidden', !visible);
+    panel.replaceChildren();
+    if (!visible) return;
+
+    const heading = document.createElement('div');
+    heading.className = 'opponent-options-heading';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Other good moves for White';
+    const small = document.createElement('span');
+    small.textContent = 'Alternatives from the position currently shown on the board.';
+    heading.append(strong, small);
+    panel.append(heading);
+
+    const newResponses = routes.filter(route => route.coverage === 'new-response');
+    const coveredElsewhere = routes.filter(route => route.coverage === 'covered-elsewhere');
+    this.appendOpponentOptionGroup(panel, 'New responses', newResponses);
+    this.appendOpponentOptionGroup(panel, 'Covered elsewhere', coveredElsewhere);
+  }
+
+  findNewResponseRoute(routeId) {
+    if (this.viewPly !== null) {
+      const route = this.historyOpponentOptions?.find(candidate =>
+        candidate.id === routeId && candidate.coverage === 'new-response'
+      );
+      if (route) return route;
+    }
+    return super.findNewResponseRoute(routeId);
+  }
+
+  openCoveredLesson(routeId) {
+    if (this.viewPly !== null) {
+      const route = this.historyOpponentOptions?.find(candidate =>
+        candidate.id === routeId && candidate.coverage === 'covered-elsewhere'
+      );
+      if (route?.targetLineId) {
+        const targetIndex = this.course.lines.findIndex(line => line.id === route.targetLineId);
+        if (targetIndex >= 0) this.startLine(targetIndex);
+      }
+      return;
+    }
+    super.openCoveredLesson(routeId);
+  }
+
+  displayedMoveFeedback() {
+    if (this.viewPly === null) return null;
+
+    let latest = null;
+    for (let index = 0; index < this.viewPly; index += 1) {
+      const { chess } = this.positionAtPly(index);
+      if (chess.turn() !== this.course.side) continue;
+
+      const uci = this.moveAtPly(index);
+      if (!uci) continue;
+      const move = chess.moveUci(uci);
+      const acceptedAlternative = this.completedTerminalMove?.ply === index
+        && this.completedTerminalMove.move === uci
+        && this.sessionRoute?.moves?.[index] !== uci;
+      const note = this.currentRouteNote(index);
+      latest = {
+        kind: 'correct',
+        text: acceptedAlternative
+          ? `${move.san} also works here.`
+          : note
+            ? `${move.san} — ${note}`
+            : `${move.san}. Correct.`
+      };
+    }
+    return latest;
+  }
+
+  renderDisplayedFeedback() {
+    const liveFeedback = this.root.querySelector('#feedback');
+    const historyFeedback = this.root.querySelector('#history-feedback');
+    if (!liveFeedback || !historyFeedback) return;
+
+    if (this.viewPly === null) {
+      liveFeedback.classList.remove('hidden');
+      historyFeedback.className = 'feedback hidden';
+      historyFeedback.textContent = '';
+      historyFeedback.setAttribute('aria-hidden', 'true');
+      return;
+    }
+
+    liveFeedback.classList.add('hidden');
+    const feedback = this.displayedMoveFeedback();
+    if (!feedback) {
+      historyFeedback.className = 'feedback hidden';
+      historyFeedback.textContent = '';
+      historyFeedback.setAttribute('aria-hidden', 'true');
+      return;
+    }
+
+    historyFeedback.className = `feedback ${feedback.kind}`;
+    historyFeedback.textContent = feedback.text;
+    historyFeedback.setAttribute('aria-hidden', 'false');
+  }
+
+  renderResponseSummary() {
+    if (this.viewPly !== null) {
+      const panel = this.root.querySelector('#response-summary');
+      panel.classList.add('hidden');
+      panel.replaceChildren();
+      return;
+    }
+    super.renderResponseSummary();
+  }
+
+  renderCompletionTheory() {
+    if (this.viewPly !== null) {
+      const panel = this.root.querySelector('#completion-theory');
+      if (panel) panel.hidden = true;
+      return;
+    }
+    super.renderCompletionTheory();
+  }
+
+  refresh() {
+    super.refresh();
+    this.renderDisplayedFeedback();
+  }
+
+  refreshHistoryView() {
+    this.renderDecisionPrompt();
+    this.renderOpponentOptions();
+    this.renderResponseSummary();
+    this.renderDisplayedFeedback();
+    this.renderCompletionTheory();
+    this.refreshBoardState();
+    this.refreshHistoryControls();
   }
 
   beginRoute(route, startPly = 0) {
