@@ -260,7 +260,8 @@ def run():
                 click_move(page, first_line['moves'][ply])
                 if ply + 1 < len(first_line['moves']):
                     wait_for_last_move(page, first_line['moves'][ply + 1])
-            expect(page.locator('#prompt')).to_contain_text('Complete')
+            expect_decision_prompt(page)
+            expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(page.locator('#feedback')).to_contain_text('clean rep')
             page.get_by_role('button', name='Good').click()
             assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
@@ -281,7 +282,8 @@ def run():
                     click_move(page, line['moves'][ply])
                     if ply + 1 < len(line['moves']):
                         wait_for_last_move(page, line['moves'][ply + 1])
-                expect(page.locator('#prompt')).to_contain_text('Complete')
+                expect_decision_prompt(page)
+                expect(page.locator('#prompt')).not_to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
                 page.get_by_role('button', name='Good').click()
             expect(page.locator('#course-progress')).to_contain_text('12/12')
