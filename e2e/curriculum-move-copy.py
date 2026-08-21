@@ -7,9 +7,14 @@ from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 
-from run import QuietHandler
+from run import QuietHandler, click_move, wait_for_last_move
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def wait_for_expected_move(page, move):
+    expect(page.locator(f'.square.hint-from[data-square="{move[:2]}"]')).to_have_count(1)
+    expect(page.locator(f'.square.hint-to[data-square="{move[2:4]}"]')).to_have_count(1)
 
 
 def run():
@@ -41,14 +46,35 @@ def run():
             expect(response).not_to_contain_text('Accelerated Panov')
             response.click()
 
+            # A curriculum response is a root-level lesson, not a hidden excursion
+            # from its authoring/teaching-owner line. It starts at the beginning.
             expect(page.locator('#line-title')).to_have_text('2.c4 — Accelerated Panov')
             expect(page.locator('#line-variation')).to_have_text('Important · Top-level opponent decision')
             expect(page.locator('#line-counter')).to_have_text('LEARN · IMPORTANT · RESPONSE')
             expect(page.locator('.lesson-card')).not_to_contain_text('Another good move')
             expect(page.locator('.lesson-card')).not_to_contain_text('from Advance — Immediate counterplay')
+            expect(response).to_have_class(lambda value: 'current' in value)
+
+            wait_for_last_move(page, 'e2e4')
+            wait_for_expected_move(page, 'c7c6')
+            expect(page.locator('#prompt')).to_contain_text('Build the position')
+            click_move(page, 'c7c6')
+
+            wait_for_last_move(page, 'c2c4')
+            wait_for_expected_move(page, 'd7d5')
+            click_move(page, 'd7d5')
+
+            # Completion of a root curriculum response continues through the
+            # curriculum sequence. It must never return to the hidden owner line.
+            expect(page.locator('#next-line')).to_have_text('Next lesson →')
+            expect(page.locator('#next-line')).not_to_have_text('Return to lesson')
+            expect(page.locator('.lesson-card')).not_to_contain_text('Advance — Immediate counterplay')
+            page.locator('#next-line').click()
+            expect(page.locator('#line-title')).to_have_text('2.d3 — Quiet system')
+            expect(page.locator('#line-title')).not_to_have_text('Advance — Immediate counterplay')
 
             browser.close()
-            print('Curriculum notation and canonical response lesson presentation regressions passed')
+            print('Curriculum notation and root response lesson lifecycle regressions passed')
     finally:
         server.shutdown()
         server.server_close()
