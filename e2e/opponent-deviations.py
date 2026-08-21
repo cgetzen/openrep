@@ -132,8 +132,8 @@ def run():
             expect(response_summary.get_by_role('button', name='Review response')).to_be_visible()
 
             # Remount with deterministic randomness so Practice must choose the newly
-            # learned response route. Use the same complete course shape as production
-            # so the advice renderer has canonical move-theory data.
+            # learned response route. Force only the teaching-owner line to be due;
+            # route randomness then deterministically chooses the learned response.
             page.evaluate("""async () => {
               const [
                 {caroKann},
@@ -144,7 +144,7 @@ def run():
                 import('./src/openings/caro-kann.js'),
                 import('./src/openings/caro-kann-responses.js?v=response-learning-v2'),
                 import('./src/openings/caro-kann-theory.js?v=decision-cues-v1'),
-                import('./src/practice-trainer.js?v=advice-only-v1')
+                import('./src/practice-trainer.js?v=advice-only-v2')
               ]);
               document.querySelector('#app').replaceChildren();
               const app = new OpenRepTrainerApp(
@@ -158,9 +158,26 @@ def run():
                 {evaluator: null, random: () => 0}
               );
               app.mount();
+
+              const now = Date.now();
+              for (const line of app.course.lines) {
+                const current = app.progress.lines[line.id] ?? {
+                  repetitions: 0,
+                  intervalDays: 0,
+                  ease: 2.5,
+                  dueAt: now,
+                  mistakes: 0,
+                  completions: 0,
+                  lastGrade: null
+                };
+                app.progress.lines[line.id] = {...current, dueAt: now + 24 * 60 * 60 * 1000};
+              }
+              app.progress.lines['advance-main'].dueAt = now - 1000;
             }""")
 
             page.get_by_role('button', name='Practice test your recall').click()
+            expect(page.locator('#line-title')).to_have_text('Advance — Main setup — Quiet development')
+            expect(page.locator('#line-variation')).to_have_text('1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6')
             play_black_moves(page, [
                 ('c7c6', 'd2d4'),
                 ('d7d5', 'e4e5'),
@@ -169,8 +186,6 @@ def run():
 
             expect_decision_prompt(page)
             assert is_highlighted(page, 'e2')
-            expect(page.locator('#line-title')).to_have_text('Advance — Main setup — Quiet development')
-            expect(page.locator('#line-variation')).to_have_text('1.e4 c6 2.d4 d5 3.e5 Bf5 4.Be2 e6')
 
             click_move(page, 'e7e6')
             wait_for_last_move(page, 'g1f3')
