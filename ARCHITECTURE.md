@@ -213,10 +213,41 @@ Examples:
 
 ## 7. Current module boundary
 
-- `src/curriculum.js`: opening-agnostic curriculum validation, ordering, course decoration, and concept lookup.
+- `src/curriculum.js`: opening-agnostic curriculum validation, ordering, course decoration, concept lookup, and canonical teaching-unit presentation.
 - `src/curriculum-trainer.js`: opening-agnostic rendering/interaction for a course that has curriculum metadata.
 - `src/openings/*-curriculum.js`: opening-specific curriculum data and evidence snapshots.
 - `src/repertoire-moves.js`: runtime coverage/response index over shipped content.
 - future `content-generator/` (or equivalent): database adapters, engine analysis, expansion, coverage optimization, clustering, artifact emission.
 
 When adding another opening, reuse the generic curriculum modules; do not fork Caro-Kann-specific validator/builder/trainer logic.
+
+## 8. Teaching-unit presentation is separate from route execution
+
+A learner can reach the same response from several entry points: the curriculum map, an opponent-alternative panel, a completed-line response list, a transposed lesson, or future search/personalization UI. Those entry points may need different navigation behavior, but they must not invent different lesson identities for the same response.
+
+```mermaid
+flowchart LR
+  RESP["Stable responseId"] --> UNIT["Teaching unit\nresponse:<responseId>"]
+  FAMILY["Primary curriculum family"] --> PRESENT["Canonical lesson presentation\ntitle + tier + role"]
+  UNIT --> PRESENT
+
+  MAP["Curriculum map"] --> UNIT
+  ALT["Opponent alternative"] --> UNIT
+  SUMMARY["Response summary"] --> UNIT
+  TRANS["Transposed lesson"] --> UNIT
+
+  UNIT --> ROUTE["Session route\nexecution mechanics"]
+  ROUTE --> TRAIN["Board / move playback / progress"]
+  PRESENT --> UI["Learner-facing lesson header"]
+  TRAIN --> UI
+```
+
+### Invariants
+
+- `responseId` identifies the teaching unit; a route identifies how that unit is executed from a particular chess path.
+- `sessionRoute.kind`, `teachingOwnerLineId`, divergence ply, and the line used to reconstruct the position are execution/authoring mechanics. They must not define the learner-facing lesson title.
+- A response with a primary curriculum family resolves its title/tier/role through one opening-agnostic curriculum presentation function. Every entry path uses that same resolver.
+- A family containing no full lines and exactly one response is a standalone response family. The family title is the lesson title; the course map must not create a second differently named conceptual lesson underneath it. A child action may show the concrete move pair (for example `2.c4 → d5`) without introducing another identity.
+- A response inside a mixed family may use its response label as a child lesson title, while still deriving tier/family metadata through the same resolver.
+- Navigation path must not change the teaching-unit presentation. Reaching `response:X` from the curriculum map and reaching `response:X` from an opponent-alternative card must produce the same lesson title and metadata.
+- Regression tests should cover at least one standalone response family and assert that route-owner copy such as “from <owner line>” does not leak into the canonical lesson header.
