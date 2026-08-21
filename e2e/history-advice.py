@@ -23,41 +23,9 @@ def assert_cue_only(prompt):
     expect(prompt).not_to_contain_text('Your move as Black')
 
 
-def begin_lesson_mutation_guard(page):
-    page.evaluate(
-        """
-        () => {
-          window.__historyLessonObserver?.disconnect();
-          window.__historyLessonMutations = [];
-          const lessonCard = document.querySelector('.lesson-card');
-          window.__historyLessonObserver = new MutationObserver(records => {
-            for (const record of records) {
-              const target = record.target.nodeType === Node.ELEMENT_NODE
-                ? record.target
-                : record.target.parentElement;
-              if (target?.closest?.('#prompt')) continue;
-              window.__historyLessonMutations.push({
-                type: record.type,
-                target: target?.id || target?.className || target?.tagName || 'unknown'
-              });
-            }
-          });
-          window.__historyLessonObserver.observe(lessonCard, {
-            subtree: true,
-            childList: true,
-            characterData: true,
-            attributes: true
-          });
-        }
-        """
-    )
-
-
-def assert_only_advice_mutated(page):
-    page.wait_for_timeout(25)
-    unexpected = page.evaluate('() => window.__historyLessonMutations ?? []')
-    assert unexpected == [], f'history navigation mutated stable lesson UI: {unexpected}'
-    page.evaluate('() => { window.__historyLessonMutations = []; }')
+def open_line(page, index, first_move='e2e4'):
+    page.locator(f'[data-line-index="{index}"]').click()
+    wait_for_last_move(page, first_move)
 
 
 def assert_history_shows_advice(page):
@@ -72,46 +40,105 @@ def assert_history_shows_advice(page):
     assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
 
-    feedback_before = page.locator('#feedback').evaluate('(el) => el.outerHTML')
-    opponent_options_before = page.locator('#opponent-options').evaluate('(el) => el.outerHTML')
-    begin_lesson_mutation_guard(page)
-
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 2 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     assert_cue_only(prompt)
     expect(prompt).not_to_contain_text('Advice for')
     expect(prompt).not_to_contain_text('Reviewing this route')
-    assert_only_advice_mutated(page)
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 1 / 3')
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
     assert_cue_only(prompt)
-    assert_only_advice_mutated(page)
 
     page.locator('#history-back').click()
     expect(history_status).to_have_text('Position 0 / 3')
     expect(prompt).to_be_empty()
     expect(prompt).not_to_contain_text('Reviewing this route')
     expect(prompt).not_to_contain_text('Use → to return')
-    assert_only_advice_mutated(page)
 
     page.locator('#history-forward').click()
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
-    assert_only_advice_mutated(page)
     page.locator('#history-forward').click()
     expect(prompt).to_have_text('Prepare to challenge White’s center with ...d5.')
-    assert_only_advice_mutated(page)
     page.locator('#history-forward').click()
     expect(history_status).to_have_text('Current position')
     assert_cue_only(prompt)
     expect(prompt).to_contain_text('Challenge White’s pawn center before it can consolidate.')
-    assert_only_advice_mutated(page)
 
-    assert page.locator('#feedback').evaluate('(el) => el.outerHTML') == feedback_before
-    assert page.locator('#opponent-options').evaluate('(el) => el.outerHTML') == opponent_options_before
-    page.evaluate('() => window.__historyLessonObserver?.disconnect()')
+
+def assert_quiet_d3_feedback_tracks_history(page):
+    open_line(page, 9)
+    click_move(page, 'c7c6')
+    wait_for_last_move(page, 'd2d3')
+    click_move(page, 'd7d5')
+    wait_for_last_move(page, 'b1d2')
+    click_move(page, 'e7e5')
+    wait_for_last_move(page, 'g1f3')
+    click_move(page, 'f8d6')
+    wait_for_last_move(page, 'g2g3')
+
+    live_feedback = page.locator('#feedback')
+    history_feedback = page.locator('#history-feedback')
+    expect(live_feedback).to_have_text(
+        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+    )
+
+    page.locator('#history-back').click()
+    expect(history_feedback).to_be_visible()
+    expect(history_feedback).to_have_text(
+        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+    )
+    expect(live_feedback).to_be_hidden()
+
+    page.locator('#history-back').click()
+    expect(history_feedback).to_have_text(
+        'e5 — 3...e5 creates a broad center because White has not challenged it.'
+    )
+
+    page.locator('#history-back').click()
+    page.locator('#history-back').click()
+    expect(history_feedback).to_have_text(
+        'd5 — 2...d5 claims equal central space immediately.'
+    )
+
+    for _ in range(4):
+        page.locator('#history-forward').click()
+    expect(page.locator('#history-status')).to_have_text('Current position')
+    expect(live_feedback).to_be_visible()
+    expect(live_feedback).to_have_text(
+        'Bd6 — 4...Bd6 develops toward the kingside and supports the center.'
+    )
+    expect(history_feedback).to_be_hidden()
+
+
+def assert_opponent_options_track_history(page):
+    open_line(page, 0)
+    click_move(page, 'c7c6')
+    wait_for_last_move(page, 'd2d4')
+    click_move(page, 'd7d5')
+    wait_for_last_move(page, 'e4e5')
+
+    panel = page.locator('#opponent-options')
+    expect(panel).to_be_visible()
+    current_options = panel.inner_text()
+
+    page.locator('#history-back').click()
+    expect(panel).to_be_visible()
+    after_d5_options = panel.inner_text()
+    assert after_d5_options == current_options
+
+    page.locator('#history-back').click()
+    expect(panel).to_be_visible()
+    after_d4_options = panel.inner_text()
+    assert after_d4_options != after_d5_options
+
+    page.locator('#history-forward').click()
+    page.locator('#history-forward').click()
+    expect(page.locator('#history-status')).to_have_text('Current position')
+    expect(panel).to_be_visible()
+    assert panel.inner_text() == current_options
 
 
 def run():
@@ -141,7 +168,10 @@ def run():
                 load_injected(page)
 
             assert_history_shows_advice(page)
+            assert_quiet_d3_feedback_tracks_history(page)
+            assert_opponent_options_track_history(page)
 
+            open_line(page, 0)
             page.get_by_role('button', name='Practice').click()
             assert_history_shows_advice(page)
 
@@ -153,4 +183,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('advice-only history mutation invariant Learn/Practice regression passed')
+    print('position-projected history context Learn/Practice regression passed')
