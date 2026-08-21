@@ -117,13 +117,13 @@ const caroKannDecisionCues = {
   },
   'accelerated-panov': {
     1: cue.caroStart,
-    3: 'White has challenged the center immediately with c4. Meet it directly with d5.',
+    3: 'White has challenged the center immediately with c4. Contest the center before White can consolidate.',
     5: 'Restore the central pawn with the c-pawn and keep the position open for active piece play.',
-    7: 'Do not expose the queen to a developing tempo. Develop Nf6 and attack the temporary d5-pawn first.',
-    9: 'The knight is developed and the pawn is still isolated. Recover d5 now without losing time.',
+    7: 'Do not expose the queen to a developing tempo. Bring out a piece while attacking the temporary advanced pawn.',
+    9: 'The advanced pawn is now loose. Recover it with the developed piece without conceding a tempo.',
     11: 'Simplify White’s most active queenside piece before completing development.',
     13: 'The d-file has opened. Trade queens to remove White’s remaining initiative.',
-    15: 'Finish natural development after the central liquidation; Black has equal material and an easy game.'
+    15: 'With the tactics resolved, complete queenside development and coordinate the remaining pieces.'
   }
 };
 
