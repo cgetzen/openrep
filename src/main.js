@@ -4,7 +4,7 @@ import { caroKannResponses } from './openings/caro-kann-responses.js?v=generated
 import { caroKannMoveTheory, caroKannLessonDecisions } from './openings/caro-kann-theory.js?v=decision-cues-v1';
 import { caroKannGeneratedMoveTheory, applyGeneratedLessonAlternatives } from './openings/caro-kann-generated-theory.js?v=generated-coverage-v1';
 import { caroKannBranchTeaching } from './openings/caro-kann-branch-teaching.js?v=teaching-copy-v1';
-import { caroKannCurriculum } from './openings/caro-kann-curriculum.js?v=generated-coverage-v1';
+import { caroKannGeneratedCurriculum } from './openings/caro-kann-generated-curriculum.js?v=generated-coverage-v1';
 import { buildCurriculumCourse } from './curriculum.js?v=lesson-session-v1';
 import { CurriculumTrainerApp } from './curriculum-trainer.js?v=lesson-session-v1';
 
@@ -16,5 +16,5 @@ const course = buildCurriculumCourse({
   moveTheory: [...caroKannMoveTheory, ...caroKannGeneratedMoveTheory],
   lessonDecisions: applyGeneratedLessonAlternatives(caroKannLessonDecisions),
   branchTeaching: caroKannBranchTeaching
-}, caroKannCurriculum);
+}, caroKannGeneratedCurriculum);
 new CurriculumTrainerApp(root, course).mount();
