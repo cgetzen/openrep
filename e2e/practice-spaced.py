@@ -84,9 +84,11 @@ def run():
             # canonical branch moves; this test is about scheduling and completion.
             prompt = page.locator('#prompt')
             for _ in range(20):
-                expect(prompt).to_have_text(re.compile(r'(Your move as Black|Complete)'))
+                expect(prompt).not_to_be_empty()
                 if 'Complete' in prompt.inner_text():
                     break
+                expect(prompt.locator('strong')).to_have_count(0)
+                expect(prompt).not_to_contain_text('Your move as Black')
 
                 hint_from = page.locator('.square.hint-from')
                 hint_to = page.locator('.square.hint-to')
