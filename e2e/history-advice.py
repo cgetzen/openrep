@@ -119,34 +119,62 @@ def assert_quiet_d3_feedback_tracks_history(page):
     expect(history_feedback).to_be_hidden()
 
 
-def assert_opponent_options_track_history(page):
+def assert_teaching_context_moves_atomically(page):
     open_line(page, 0)
+    ensure_hint_off(page)
+    prompt = page.locator('#prompt')
+    panel = page.locator('#opponent-options')
+
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(panel).to_be_hidden()
+
     click_move(page, 'c7c6')
     wait_for_last_move(page, 'd2d4')
+    d4_advice = prompt.inner_text()
+    d4_options = opponent_moves(panel)
+    expect(panel).to_be_visible()
+    assert d4_options
+
     click_move(page, 'd7d5')
     wait_for_last_move(page, 'e4e5')
-
-    panel = page.locator('#opponent-options')
+    e5_advice = prompt.inner_text()
+    e5_options = opponent_moves(panel)
     expect(panel).to_be_visible()
-    current_options = opponent_moves(panel)
-    assert current_options
+    assert e5_options
+    assert e5_advice != d4_advice
+    assert e5_options != d4_options
+
+    # Rewinding over Black's ...d5 must keep the whole teaching context on 2.d4.
+    page.locator('#history-back').click()
+    expect(page.locator('#history-status')).to_have_text('Position 4 / 5')
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
+
+    # Rewinding over White's 2.d4 is where advice and alternatives change together.
+    page.locator('#history-back').click()
+    expect(page.locator('#history-status')).to_have_text('Position 3 / 5')
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
 
     page.locator('#history-back').click()
-    expect(panel).to_be_visible()
-    after_d5_options = opponent_moves(panel)
-    assert after_d5_options == current_options
+    expect(page.locator('#history-status')).to_have_text('Position 2 / 5')
+    expect(prompt).to_contain_text('Prepare to challenge White’s center with ...d5.')
+    expect(panel).to_be_hidden()
 
-    page.locator('#history-back').click()
+    # Forward navigation has the same atomic boundary: Black moves do not advance teaching context.
+    page.locator('#history-forward').click()
+    expect(prompt).to_have_text(d4_advice)
     expect(panel).to_be_visible()
-    after_d4_options = opponent_moves(panel)
-    assert after_d4_options
-    assert after_d4_options != after_d5_options
+    assert opponent_moves(panel) == d4_options
 
     page.locator('#history-forward').click()
+    expect(prompt).to_have_text(d4_advice)
+    assert opponent_moves(panel) == d4_options
+
     page.locator('#history-forward').click()
     expect(page.locator('#history-status')).to_have_text('Current position')
-    expect(panel).to_be_visible()
-    assert opponent_moves(panel) == current_options
+    expect(prompt).to_have_text(e5_advice)
+    assert opponent_moves(panel) == e5_options
 
 
 def run():
@@ -177,7 +205,7 @@ def run():
 
             assert_history_shows_advice(page)
             assert_quiet_d3_feedback_tracks_history(page)
-            assert_opponent_options_track_history(page)
+            assert_teaching_context_moves_atomically(page)
 
             open_line(page, 0)
             page.get_by_role('button', name='Practice').click()
@@ -191,4 +219,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    print('position-projected history context Learn/Practice regression passed')
+    print('atomic decision-context Learn/Practice history regression passed')
