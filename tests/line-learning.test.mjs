@@ -7,7 +7,7 @@ import {
   lineWeaknessProfile,
   recentLineAttempts,
   recordLineAttempt
-} from '../src/line-learning.js';
+} from '../src/progress.js';
 
 test('line attempts keep only the latest five completed runs', () => {
   let progress = {};
