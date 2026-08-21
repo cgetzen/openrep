@@ -99,11 +99,11 @@ export class CoachingTrainerApp extends TrainerApp {
     const prompt = this.root.querySelector('#prompt');
     if (this.viewPly !== null) {
       const review = this.historicalDecisionCue();
+      prompt.replaceChildren();
       if (!review) return;
-      const notation = review.chess.notationFor(review.expected);
-      const heading = review.moveAlreadyPlayed ? `Advice for ${notation}.` : 'Your move as Black.';
-      const clue = !review.moveAlreadyPlayed && this.hintEnabled ? ` Find ${notation}.` : '';
-      prompt.innerHTML = `<strong>${heading}</strong><span>${review.cue}${clue}</span>`;
+      const advice = document.createElement('span');
+      advice.textContent = review.cue;
+      prompt.append(advice);
       return;
     }
 
