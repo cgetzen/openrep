@@ -17,7 +17,8 @@ test('1...b5 is explained with the concrete Bxb5 punishment', () => {
   assert.equal(result.response, 'Bxb5');
   assert.deepEqual(result.arrow, { from: 'f1', to: 'b5' });
   assert.match(result.message, /Bxb5/);
-  assert.match(result.message, /c6/);
+  assert.match(result.message, /c6 prepares d5/);
+  assert.doesNotMatch(result.message, /\.\.\.(?=[A-Za-z0-9])/);
 });
 
 test('a non-tactical deviation explains the repertoire choice without inventing a criticism', () => {
@@ -29,7 +30,8 @@ test('a non-tactical deviation explains the repertoire choice without inventing 
   assert.equal(result.arrow, null);
   assert.match(result.message, /not the move this line teaches/);
   assert.match(result.message, /c6/);
-  assert.match(result.message, /prepares \.\.\.d5/);
+  assert.match(result.message, /prepares d5/);
+  assert.doesNotMatch(result.message, /\.\.\.(?=[A-Za-z0-9])/);
   assert.doesNotMatch(result.message, /inaccurate/i);
   assert.doesNotMatch(result.message, /misses the main point/i);
 });
