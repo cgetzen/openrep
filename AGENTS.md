@@ -56,6 +56,15 @@ In particular:
 - Do not use labels, lesson IDs, authoring anchors, or source-specific IDs as identity when the underlying domain object has a more stable key.
 - Validate domain uniqueness/invariants at construction boundaries so bad course data fails fast instead of producing duplicate or contradictory UI later.
 
+### Learner-facing move notation invariant
+
+Learner-facing explanatory prose should show chess moves without Black-move ellipses or embedded move-number prefixes. For example, render `c5` and `Bf5`, not `...c5`, `3...c5`, or `4...Bf5`.
+
+- Authored/static/generated source content may retain conventional notation when useful for provenance or authoring; normalize it at the shared teaching/presentation boundary.
+- Apply the convention consistently across prompts, feedback, branch briefings, curriculum titles/plans/recognition copy, response labels, evidence/tooltips, and future explanatory surfaces.
+- Do not solve this by editing one occurrence of copy when the same notation can enter through other content sources.
+- Explicit move-sequence notation whose purpose is to show numbered game history is a separate presentation concern and may retain move numbers when intentionally designed as notation rather than prose.
+
 ### Learn / Practice parity invariant
 
 Learn and Practice should share trainer behavior and UI by default. Differences between the modes are a frequent source of regressions and must be kept deliberately small.
