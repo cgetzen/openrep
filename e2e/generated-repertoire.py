@@ -95,6 +95,18 @@ def run():
             expect(played).to_contain_text('Also works')
             expect(played).to_contain_text('You played')
 
+            # History may reconstruct the accepted Bg4 that was actually played,
+            # but moving back/forward to the same decision must still project the
+            # canonical Bf5 + accepted-Bg4 repertoire semantics.
+            page.locator('#history-back').click()
+            page.locator('#history-back').click()
+            page.locator('#history-forward').click()
+            expect(page.locator('#prompt')).to_contain_text('Bf5')
+            click_move(page, 'c8f5')
+            expect(page.locator('#feedback')).not_to_contain_text('not the move this line teaches')
+            expect(page.locator('#feedback')).not_to_contain_text('repertoire choice here')
+            expect(page.locator('#feedback')).to_contain_text('clean rep')
+
             browser.close()
     finally:
         server.shutdown()
