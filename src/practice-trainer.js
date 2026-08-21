@@ -58,7 +58,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     liveFeedback.after(historyFeedback);
   }
 
-  displayedDecisionAdvice() {
+  displayedDecisionContext() {
     if (this.practiceCaughtUp || this.sessionRoute?.kind === 'response') return null;
 
     const displayPly = this.viewPly === null ? this.ply : this.viewPly;
@@ -73,7 +73,18 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     const cue = this.moveTheory.cueAt(miniChessToFen(chess), expected);
     if (!cue) return null;
 
-    return { ...review, chess, expected, cue };
+    return {
+      ...review,
+      displayPly,
+      opponentDecisionPly: review.decisionPly > 0 ? review.decisionPly - 1 : null,
+      chess,
+      expected,
+      cue
+    };
+  }
+
+  displayedDecisionAdvice() {
+    return this.displayedDecisionContext();
   }
 
   responseAdvice() {
@@ -103,7 +114,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
       return;
     }
 
-    const decision = this.displayedDecisionAdvice();
+    const decision = this.displayedDecisionContext();
     if (!decision) return;
 
     const showHint = this.viewPly === null
@@ -118,33 +129,17 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
 
   displayedOpponentOptions() {
     if (this.mode !== 'learn' || this.sessionRoute?.kind !== 'canonical') return [];
+    if (this.viewPly === null && this.lineFinished) return [];
 
-    const displayPly = this.viewPly === null ? this.ply : this.viewPly;
-    const { chess: displayedChess } = this.positionAtPly(displayPly);
-    let opponentDecisionPly = null;
-
-    if (displayedChess.turn() !== this.course.side) {
-      opponentDecisionPly = displayPly;
-    } else if (displayPly > 0) {
-      const { chess: previousChess } = this.positionAtPly(displayPly - 1);
-      if (previousChess.turn() !== this.course.side) opponentDecisionPly = displayPly - 1;
-    }
-
-    return opponentDecisionPly === null
-      ? []
-      : this.repertoire.opponentAlternatives(this.line, opponentDecisionPly);
+    const decision = this.displayedDecisionContext();
+    if (decision?.opponentDecisionPly === null || decision?.opponentDecisionPly === undefined) return [];
+    return this.repertoire.opponentAlternatives(this.line, decision.opponentDecisionPly);
   }
 
   renderOpponentOptions() {
-    if (this.viewPly === null) {
-      this.historyOpponentOptions = null;
-      super.renderOpponentOptions();
-      return;
-    }
-
     const panel = this.root.querySelector('#opponent-options');
     const routes = this.displayedOpponentOptions();
-    this.historyOpponentOptions = routes;
+    this.visibleOpponentOptions = routes;
     const visible = routes.length > 0;
     panel.classList.toggle('hidden', !visible);
     panel.replaceChildren();
@@ -155,7 +150,7 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
     const strong = document.createElement('strong');
     strong.textContent = 'Other good moves for White';
     const small = document.createElement('span');
-    small.textContent = 'Alternatives from the position currently shown on the board.';
+    small.textContent = 'Alternatives to the White move this advice responds to.';
     heading.append(strong, small);
     panel.append(heading);
 
@@ -166,24 +161,20 @@ export class OpenRepTrainerApp extends CoachingTrainerApp {
   }
 
   findNewResponseRoute(routeId) {
-    if (this.viewPly !== null) {
-      const route = this.historyOpponentOptions?.find(candidate =>
-        candidate.id === routeId && candidate.coverage === 'new-response'
-      );
-      if (route) return route;
-    }
+    const visibleRoute = this.visibleOpponentOptions?.find(candidate =>
+      candidate.id === routeId && candidate.coverage === 'new-response'
+    );
+    if (visibleRoute) return visibleRoute;
     return super.findNewResponseRoute(routeId);
   }
 
   openCoveredLesson(routeId) {
-    if (this.viewPly !== null) {
-      const route = this.historyOpponentOptions?.find(candidate =>
-        candidate.id === routeId && candidate.coverage === 'covered-elsewhere'
-      );
-      if (route?.targetLineId) {
-        const targetIndex = this.course.lines.findIndex(line => line.id === route.targetLineId);
-        if (targetIndex >= 0) this.startLine(targetIndex);
-      }
+    const visibleRoute = this.visibleOpponentOptions?.find(candidate =>
+      candidate.id === routeId && candidate.coverage === 'covered-elsewhere'
+    );
+    if (visibleRoute?.targetLineId) {
+      const targetIndex = this.course.lines.findIndex(line => line.id === visibleRoute.targetLineId);
+      if (targetIndex >= 0) this.startLine(targetIndex);
       return;
     }
     super.openCoveredLesson(routeId);
