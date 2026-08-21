@@ -65,6 +65,17 @@ Learner-facing explanatory prose should show chess moves without Black-move elli
 - Do not solve this by editing one occurrence of copy when the same notation can enter through other content sources.
 - Explicit move-sequence notation whose purpose is to show numbered game history is a separate presentation concern and may retain move numbers when intentionally designed as notation rather than prose.
 
+### Teaching-unit presentation invariant
+
+A stable response is one teaching unit regardless of how the learner navigates to it. Navigation and route execution must not create alternate learner-facing identities for the same `responseId`.
+
+- `responseId` identifies the response teaching unit. `sessionRoute`, `teachingOwnerLineId`, divergence ply, authoring anchor, and the line used to reconstruct the position are execution/authoring mechanics, not lesson identity.
+- If a response belongs to a primary curriculum family, resolve its learner-facing title, tier, and role through the shared curriculum teaching-unit presentation resolver. Curriculum-map entry, opponent-alternative entry, completed-line response entry, and transposed entry must produce the same title and metadata.
+- A primary family with no full lines and exactly one response is a standalone response family. Its family title is the lesson title; do not render a second conceptual child title that makes the same material look like a different lesson. A child action may show the concrete move pair, such as `2.c4 → d5`.
+- A response inside a mixed family may retain its response-specific child title, but family/tier metadata still comes from the same canonical resolver.
+- Do not expose route-owner copy such as `Another good move` or `from <teaching owner line>` as the canonical lesson header when curriculum metadata already owns that teaching unit.
+- Regression coverage should verify presentation parity across at least two entry paths for a curriculum-mapped response when practical.
+
 ### Learn / Practice parity invariant
 
 Learn and Practice should share trainer behavior and UI by default. Differences between the modes are a frequent source of regressions and must be kept deliberately small.
