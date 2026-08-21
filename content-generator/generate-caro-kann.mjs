@@ -6,6 +6,7 @@ import { miniChessToFen } from '../src/position-fen.js';
 import { normalizePositionKey } from '../src/repertoire-moves.js';
 import { caroKann } from '../src/openings/caro-kann.js';
 import { caroKann20260821Snapshot } from './openings/caro-kann/2026-08-21.snapshot.mjs';
+import { caroKannCoveragePolicy } from './openings/caro-kann/coverage-policy.mjs';
 import { compileRepertoireSnapshot, serializeGeneratedModule } from './repertoire-compiler.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -22,11 +23,29 @@ export function positionKeyForAnchor(course, anchor) {
   return normalizePositionKey(miniChessToFen(chess));
 }
 
-export function compileCaroKannSnapshot() {
-  const decisions = caroKann20260821Snapshot.decisions.map(decision => ({
+function applyCoveragePolicy(decision) {
+  const contentByMove = caroKannCoveragePolicy.responseContent?.[decision.id] ?? {};
+  return {
     ...decision,
-    positionKey: positionKeyForAnchor(caroKann, decision.anchor)
-  }));
+    responses: (decision.responses ?? []).map(response => ({
+      ...response,
+      ...(contentByMove[response.opponentMove] ?? {})
+    }))
+  };
+}
+
+export function compileCaroKannSnapshot() {
+  if (caroKann20260821Snapshot.policyVersion !== caroKannCoveragePolicy.version) {
+    throw new Error('Caro-Kann snapshot and generation policy versions do not match');
+  }
+
+  const decisions = caroKann20260821Snapshot.decisions.map(rawDecision => {
+    const decision = applyCoveragePolicy(rawDecision);
+    return {
+      ...decision,
+      positionKey: positionKeyForAnchor(caroKann, decision.anchor)
+    };
+  });
 
   return compileRepertoireSnapshot({
     ...caroKann20260821Snapshot,
