@@ -68,12 +68,13 @@ Learn and Practice should share trainer behavior and UI by default. Differences 
 
 ### History navigation projection invariant
 
-History navigation changes the viewed chess position, not the underlying lesson/session state. Treat rewind/forward as a narrow projection refresh rather than a normal application refresh.
+History navigation changes the viewed chess position without changing the underlying lesson/session state. Treat rewind/forward as a projection of the session at `displayPly`, not as either a full application refresh or a frozen copy of the current-position UI.
 
-- Back/forward navigation may update only position-derived surfaces: the board position, Stockfish evaluation, history controls/status, and the position-specific advice prompt.
-- Stable lesson/result surfaces must not be re-rendered or mutated by history navigation. This includes move feedback/classification, opponent alternatives, response summaries, completion teaching, lesson title/variation, grading controls, and other session-derived copy.
-- New UI that genuinely depends on the viewed historical position must opt into the history refresh path explicitly; do not broaden history navigation by calling the full trainer refresh.
-- Regression coverage should fail when history navigation mutates lesson-card content outside the advice prompt.
+- Every position-dependent surface must project from the position currently shown on the board. This includes advice, move feedback/explanations, opponent alternatives, response/completion teaching visibility, evaluation, and future position-context UI.
+- A feedback panel may preserve the live training result internally while history is open, but the visible historical feedback must describe the most recent repertoire-side move applicable at the viewed position. Returning to the current position restores the live result.
+- Session-owned state must not be rewritten by history navigation. Progress, grading state, scheduling, selected lesson/route, mistakes, and learned-response state remain unchanged while their position-dependent presentation may be hidden or projected.
+- History navigation must use an explicit projection path rather than the full trainer `refresh()`. New position-context UI must opt into that projection path.
+- Regression coverage must verify multiple right-panel surfaces at multiple plies, including a case where historical move feedback changes from one repertoire move to an earlier one.
 
 ## 4. Architecture invariants
 
