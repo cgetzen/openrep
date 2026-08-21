@@ -115,6 +115,10 @@ export class CoachingTrainerApp extends TrainerApp {
     prompt.innerHTML = `<strong>Your move as Black.</strong><span>${decisionCue}${clue}</span>`;
   }
 
+  refreshHistoryAdvice() {
+    this.renderDecisionPrompt();
+  }
+
   refresh() {
     const prompt = this.root.querySelector('#prompt');
     const preservedPrompt = this.preservePromptDuringAcceptedMoveRefresh && prompt
