@@ -25,13 +25,32 @@ test('every Caro-Kann line has complete, distinct branch teaching', () => {
     assert.ok(teaching.memoryHook.length > 0);
 
     const briefing = index.briefingForLine(line.id);
-    assert.match(briefing, /Key idea:/);
+    assert.match(briefing, /\nKey idea: /);
+    assert.doesNotMatch(briefing, /\.\.\.(?=[A-Za-z0-9])/);
     assert.ok(briefing.length > line.summary.length);
     return briefing;
   });
 
   assert.equal(briefings.length, caroKann.lines.length);
   assert.equal(new Set(briefings).size, caroKann.lines.length);
+});
+
+test('branch briefing construction owns Key idea line placement and move-notation normalization', () => {
+  const first = caroKannBranchTeaching[0];
+  const index = new BranchTeachingIndex(courseWithBranchTeaching({
+    branchTeaching: caroKannBranchTeaching.map(entry => entry.lineId === first.lineId
+      ? {
+          ...entry,
+          plan: 'Challenge with ...d5, then 4...c5.',
+          memoryHook: 'Use ...c5 before White consolidates.'
+        }
+      : entry)
+  }));
+
+  const briefing = index.briefingForLine(first.lineId);
+  assert.match(briefing, /Challenge with d5, then c5\./);
+  assert.match(briefing, /\nKey idea: Use c5 before White consolidates\.$/);
+  assert.equal(briefing.split('\nKey idea: ').length, 2);
 });
 
 test('branch teaching owns only the first repertoire decision', () => {
