@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { caroKann } from '../src/openings/caro-kann.js';
 import { MiniChess } from '../src/mini-chess.js';
 
-test('course has thirteen unique practical branches', () => {
+test('course has fourteen unique practical branches', () => {
   assert.equal(caroKann.side, 'b');
-  assert.equal(caroKann.lines.length, 13);
-  assert.equal(new Set(caroKann.lines.map(line => line.id)).size, 13);
+  assert.equal(caroKann.lines.length, 14);
+  assert.equal(new Set(caroKann.lines.map(line => line.id)).size, 14);
 });
 
 test('every course line is legal in the in-browser chess rules layer', () => {
