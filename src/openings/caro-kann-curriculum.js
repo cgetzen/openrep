@@ -154,6 +154,20 @@ export const caroKannCurriculum = {
       }
     },
     {
+      id: 'classical-burris',
+      tier: 'on-demand',
+      title: 'Classical — 5.Bd3 Burris Gambit',
+      role: 'Rare gambit',
+      recognition: 'After 4...Bf5, White plays 5.Bd3 and offers the d4-pawn for rapid development and tempi against the queen.',
+      plan: 'Accept d4 with Qxd4, retreat from Nf3 without returning the pawn, then consolidate with e6, exchanges, and normal development.',
+      lineIds: ['classical-burris'],
+      responseIds: [],
+      evidence: {
+        label: 'Rare gambit',
+        detail: 'A theory-driven Classical sideline. It is useful as on-demand preparation but too rare to enlarge the Core Classical path.'
+      }
+    },
+    {
       id: 'advance-bf5-alternative',
       tier: 'on-demand',
       title: 'Advance — ...Bf5 alternative',
