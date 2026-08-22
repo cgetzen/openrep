@@ -237,10 +237,12 @@ def run():
             expect_decision_prompt(page)
             assert is_highlighted(page, 'd2') and is_highlighted(page, 'd4')
 
-            # ArrowLeft rewinds without mutating training state; history is read-only.
+            # ArrowLeft rewinds without mutating training state. Opponent-turn
+            # history is an interactive analysis projection; repertoire turns keep
+            # canonical replay semantics.
             page.keyboard.press('ArrowLeft')
-            expect(page.locator('.chessboard')).to_have_class(re.compile(r'board-readonly'))
-            expect(square(page, 'd7')).to_be_disabled()
+            expect(page.locator('.chessboard')).not_to_have_class(re.compile(r'board-readonly'))
+            expect(square(page, 'd2')).to_be_enabled()
             expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
             expect(page.locator('.piece[data-piece-square="d2"]')).to_have_count(1)
             assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
@@ -253,7 +255,7 @@ def run():
             expect(page.locator('.chessboard')).not_to_have_class(re.compile(r'board-readonly'))
             expect(square(page, 'd7')).to_be_enabled()
             expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
-            results.append('supports drag moves and read-only ArrowLeft/ArrowRight history review')
+            results.append('supports drag moves and interactive ArrowLeft/ArrowRight history review')
 
             # Complete line 1 once, schedule it automatically, then prove browser persistence.
             page.locator('#reset-line').click()

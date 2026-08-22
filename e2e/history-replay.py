@@ -41,10 +41,50 @@ def run():
             wait_for_last_move(page, 'd2d4')
             expect(page.locator('#history-status')).to_have_text('Current position')
 
-            # The intermediate opponent-turn position remains read-only.
+            # Rewinding to an opponent turn starts a separate analysis variation.
+            # Moves stick, both sides remain movable, and each exploratory move is
+            # scored without advancing the lesson's live route.
             page.locator('#history-back').click()
             expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
-            expect(square(page, 'd2')).to_be_disabled()
+            expect(square(page, 'd2')).to_be_enabled()
+
+            click_move(page, 'd2d4')
+            historical_feedback = page.locator('#history-feedback')
+            expect(page.locator('#history-status')).to_contain_text('Analysis 1/6')
+            expect(historical_feedback.locator('.move-quality')).to_have_count(1, timeout=15000)
+            expect(historical_feedback).to_contain_text('d4')
+            expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
+            expect(page.locator('#analysis-return')).to_be_visible()
+
+            click_move(page, 'd7d5')
+            expect(page.locator('#history-status')).to_contain_text('Analysis 2/6')
+            expect(historical_feedback.locator('.move-quality')).to_have_count(1, timeout=15000)
+            expect(historical_feedback).to_contain_text('d5')
+            expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="d5"]')).to_have_count(1)
+
+            click_move(page, 'e4e5')
+            expect(page.locator('#history-status')).to_contain_text('Analysis 3/6')
+            expect(historical_feedback.locator('.move-quality')).to_have_count(1, timeout=15000)
+            expect(page.locator('.piece[data-piece-square="e5"]')).to_have_count(1)
+            expect(page.locator('#prompt')).to_contain_text('Known repertoire position')
+
+            # History buttons first navigate the temporary analysis branch. Undo and
+            # redo must preserve the exploratory continuation before history itself moves.
+            page.locator('#history-back').click()
+            expect(page.locator('#history-status')).to_contain_text('Analysis 2/6')
+            expect(page.locator('.piece[data-piece-square="e4"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="e5"]')).to_have_count(0)
+            page.locator('#history-forward').click()
+            expect(page.locator('#history-status')).to_contain_text('Analysis 3/6')
+            expect(page.locator('.piece[data-piece-square="e5"]')).to_have_count(1)
+
+            # Returning to the line discards only the temporary branch and restores
+            # the original historical projection at its anchor.
+            page.locator('#analysis-return').click()
+            expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
+            expect(page.locator('.piece[data-piece-square="d2"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(0)
 
             # Rewind to the exact same Black decision and try the exact same bad move.
             # 1→2→X and 1→2→3→2→X must be learner-facing identical.
@@ -75,7 +115,7 @@ def run():
             expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
 
             browser.close()
-            print('Interactive history replay and equivalent-attempt parity regression passed')
+            print('Sticky analysis variation, known-position recognition, and equivalent-attempt parity regression passed')
     finally:
         server.shutdown()
         server.server_close()

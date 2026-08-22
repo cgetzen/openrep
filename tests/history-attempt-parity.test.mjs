@@ -237,6 +237,77 @@ test('1→2→X and 1→2→3→2→X use identical learner-facing wrong-move fe
   }
 });
 
+test('rewound opponent move is scored without advancing or mutating the lesson', async () => {
+  const originalDocument = globalThis.document;
+  globalThis.document = {
+    createElement() {
+      return { className: '', textContent: '' };
+    }
+  };
+
+  try {
+    const line = caroKann.lines[0];
+    const liveFeedback = new FakeFeedback();
+    const historyFeedback = new FakeFeedback();
+    historyFeedback.hidden = true;
+    const historicalChess = chessAt(line.moves, 2);
+    const app = Object.create(AutomaticSpacedTrainerApp.prototype);
+    Object.assign(app, {
+      root: {
+        querySelector(selector) {
+          if (selector === '#feedback') return liveFeedback;
+          if (selector === '#history-feedback') return historyFeedback;
+          return null;
+        }
+      },
+      course: caroKann,
+      line,
+      sessionRoute: { moves: [...line.moves], notes: { ...(line.notes ?? {}) } },
+      chess: chessAt(line.moves, 5),
+      ply: 5,
+      viewPly: 2,
+      lineFinished: false,
+      practiceCaughtUp: false,
+      mode: 'learn',
+      completedTerminalMove: null,
+      wrongMoveEvaluationRequest: 0,
+      evaluator: {
+        evaluateMove() {
+          return Promise.resolve({
+            before: { type: 'cp', value: 50 },
+            move: { type: 'cp', value: 20 }
+          });
+        }
+      },
+      evaluationBar: null,
+      board: boardStub(),
+      mistakesThisLine: 7,
+      historicalReplayContext() {
+        return {
+          chess: historicalChess,
+          lastOpponentMove: null,
+          expected: null,
+          interactive: true,
+          analysisSide: 'w'
+        };
+      },
+      refreshBoardState() {}
+    });
+
+    app.replayHistoricalMove('d2', 'd3');
+    await flushPromises();
+
+    assert.equal(historyFeedback.textContent, 'Good (-0.30). d3.');
+    assert.equal(liveFeedback.hidden, true);
+    assert.equal(historyFeedback.hidden, false);
+    assert.equal(app.ply, 5);
+    assert.equal(app.viewPly, 2);
+    assert.equal(app.mistakesThisLine, 7);
+  } finally {
+    globalThis.document = originalDocument;
+  }
+});
+
 test('history keeps the canonical primary move separate from an accepted move that was actually played', () => {
   const { app } = terminalHistoryHarness('c8g4');
 
