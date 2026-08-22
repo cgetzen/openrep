@@ -68,7 +68,11 @@ test('every Black decision in every Caro-Kann branch has a non-answer strategic 
     }
   }
 
-  assert.equal(decisionCount, 91);
+  const expectedDecisionCount = caroKann.lines.reduce(
+    (total, line) => total + line.moves.filter((_, index) => index % 2 === 1).length,
+    0
+  );
+  assert.equal(decisionCount, expectedDecisionCount);
 });
 
 test('the same position can teach different strategic cues for different repertoire choices', () => {
