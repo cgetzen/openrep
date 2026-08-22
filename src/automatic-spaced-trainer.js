@@ -143,7 +143,7 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
   discardAnalysisVariation() {
     if (!this.analysisVariation) return false;
     this.analysisVariation = null;
-    this.analysisGeneration += 1;
+    this.analysisGeneration = (Number.isInteger(this.analysisGeneration) ? this.analysisGeneration : 0) + 1;
     return true;
   }
 
@@ -438,7 +438,7 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
       maxPlies: ANALYSIS_MAX_PLIES
     });
     this.analysisVariation = variation;
-    this.analysisGeneration += 1;
+    this.analysisGeneration = (Number.isInteger(this.analysisGeneration) ? this.analysisGeneration : 0) + 1;
     this.playAnalysisMove(attempted);
   }
 
