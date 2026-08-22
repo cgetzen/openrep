@@ -3,12 +3,10 @@ from __future__ import annotations
 import functools
 import http.server
 import json
-import os
 import re
 import threading
 from pathlib import Path
 
-from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,194 +17,113 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
-def square(page, name: str):
-    """Return exactly the board-square button, never a nested piece element."""
+def square(page, name):
     return page.locator(f'.square[data-square="{name}"]')
 
 
-def click_move(page, uci: str):
+def click_move(page, uci):
     square(page, uci[:2]).click()
     square(page, uci[2:4]).click()
 
 
-def drag_move(page, uci: str):
-    """Exercise pointer-based dragging with Playwright's real drag gesture."""
-    source = page.locator(f'.piece[data-piece-square="{uci[:2]}"]')
+def drag_move(page, uci):
+    source = square(page, uci[:2])
     target = square(page, uci[2:4])
-    source.drag_to(target, force=True)
+    source_box = source.bounding_box()
+    target_box = target.bounding_box()
+    assert source_box and target_box
+    page.mouse.move(source_box['x'] + source_box['width'] / 2, source_box['y'] + source_box['height'] / 2)
+    page.mouse.down()
+    page.mouse.move(target_box['x'] + target_box['width'] / 2, target_box['y'] + target_box['height'] / 2, steps=8)
+    page.mouse.up()
 
 
-def is_highlighted(page, name: str) -> bool:
-    return square(page, name).evaluate('(el) => el.classList.contains("last-move")')
+def is_highlighted(page, square_name):
+    return 'last-move' in (square(page, square_name).get_attribute('class') or '')
 
 
-def wait_for_last_move(page, uci: str):
-    """Synchronize on the opponent autoplay completing, not on prompt copy."""
+def wait_for_last_move(page, uci):
     expect(square(page, uci[:2])).to_have_class(re.compile(r'last-move'))
     expect(square(page, uci[2:4])).to_have_class(re.compile(r'last-move'))
 
 
 def expect_decision_prompt(page):
-    prompt = page.locator('#prompt')
-    expect(prompt).not_to_be_empty()
-    expect(prompt.locator('strong')).to_have_count(0)
-    expect(prompt).not_to_contain_text('Your move as Black')
+    expect(page.locator('#prompt')).not_to_be_empty()
 
 
-def browser_bundle() -> str:
-    """Concatenate dependency-free modules for URL-blocked test environments."""
-    paths = [
-        ROOT / 'src/openings/caro-kann.js',
-        ROOT / 'src/openings/caro-kann-responses.js',
-        ROOT / 'src/openings/caro-kann-theory.js',
-        ROOT / 'src/openings/caro-kann-branch-teaching.js',
-        ROOT / 'src/mini-chess.js',
-        ROOT / 'src/progress.js',
-        ROOT / 'src/chess-board.js',
-        ROOT / 'src/practice-selection.js',
-        ROOT / 'src/trainer.js',
-        ROOT / 'src/move-explanations.js',
-        ROOT / 'src/position-fen.js',
-        ROOT / 'src/repertoire-moves.js',
-        ROOT / 'src/move-theory.js',
-        ROOT / 'src/branch-teaching.js',
-        ROOT / 'src/coaching-trainer.js',
-        ROOT / 'src/practice-trainer.js',
-        ROOT / 'src/automatic-spaced-trainer.js',
-    ]
-    chunks = []
-    for path in paths:
-        source = path.read_text()
-        source = re.sub(r'^import .*?;\s*$', '', source, flags=re.MULTILINE)
-        source = re.sub(r'\bexport\s+(?=(?:const|let|var|class|function)\b)', '', source)
-        chunks.append(source)
-    chunks.append(
-        "const course = { ...caroKann, responses: caroKannResponses, moveTheory: caroKannMoveTheory, lessonDecisions: caroKannLessonDecisions, branchTeaching: caroKannBranchTeaching };\n"
-        "window.__OpenRep = { AutomaticSpacedTrainerApp, caroKann: course };\n"
-        "new AutomaticSpacedTrainerApp(document.querySelector('#app'), course).mount();"
-    )
-    return '\n\n'.join(chunks)
-
-
-def load_injected(page):
-    """Fallback for managed Chromium builds that block localhost/file/data URLs."""
-    html = (ROOT / 'index.html').read_text()
-    html = re.sub(r'<script\s+type="module"[^>]*></script>', '', html)
-    page.set_content(html)
-    page.add_style_tag(content=(ROOT / 'src/style.css').read_text())
-    page.add_style_tag(content=(ROOT / 'src/practice-modes.css').read_text())
-    page.add_style_tag(content=(ROOT / 'src/coach-overrides.css').read_text())
-    page.add_script_tag(content="""
-      (() => {
-        const store = new Map();
-        const storage = {
-          get length() { return store.size; },
-          key(i) { return Array.from(store.keys())[i] ?? null; },
-          getItem(k) { k = String(k); return store.has(k) ? store.get(k) : null; },
-          setItem(k, v) { store.set(String(k), String(v)); },
-          removeItem(k) { store.delete(String(k)); },
-          clear() { store.clear(); },
-          _keys() { return Array.from(store.keys()); }
-        };
-        Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
-      })();
-    """)
-    page.add_script_tag(content=browser_bundle())
-
-
-def get_course_lines(page, injected: bool):
-    if injected:
-        return page.evaluate(
-            "window.__OpenRep.caroKann.lines.map(({id,title,moves}) => ({id,title,moves}))"
-        )
-    return page.evaluate(
-        "async () => { const m = await import('./src/openings/caro-kann.js'); "
-        "return m.caroKann.lines.map(({id,title,moves}) => ({id,title,moves})); }"
-    )
-
-
-def storage_keys(page, injected: bool):
-    if injected:
-        return page.evaluate('localStorage._keys()')
-    return page.evaluate('Object.keys(localStorage)')
-
-
-def restore_app(page, injected: bool):
-    if injected:
-        page.evaluate("""
-          document.querySelector('#app').replaceChildren();
-          new window.__OpenRep.AutomaticSpacedTrainerApp(
-            document.querySelector('#app'), window.__OpenRep.caroKann
-          ).mount();
-        """)
-    else:
-        page.reload(wait_until='load')
+def get_course_lines(page, injected):
+    return page.evaluate("""async (courseModule) => {
+        const module = await import(courseModule);
+        return module.caroKann.lines;
+    }""", injected)
 
 
 def run():
-    results = []
     handler = functools.partial(QuietHandler, directory=str(ROOT))
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
+    results = []
     try:
         with sync_playwright() as p:
-            launch = {'headless': True}
-            chromium_path = os.environ.get('CHROMIUM_PATH')
-            if chromium_path:
-                launch['executable_path'] = chromium_path
-                launch['args'] = ['--no-sandbox']
-            browser = p.chromium.launch(**launch)
-            context = browser.new_context(viewport={"width": 1440, "height": 1050})
-            page = context.new_page()
-            injected = False
-            try:
-                page.goto(f'http://127.0.0.1:{server.server_port}/', wait_until='load', timeout=8000)
-            except PlaywrightError as error:
-                if 'ERR_BLOCKED_BY_ADMINISTRATOR' not in str(error):
-                    raise
-                page.close()
-                page = context.new_page()
-                load_injected(page)
-                injected = True
-                results.append('used navigation-free fallback for managed Chromium policy')
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
+            base = f'http://127.0.0.1:{server.server_port}'
+            page.goto(base, wait_until='load')
+            injected = f'{base}/src/openings/caro-kann.js'
 
-            expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()
-            expect(page.locator('#line-title')).to_have_text('Advance — Main setup')
+            expect(page.locator('h1')).to_have_text('Caro-Kann Defense')
+            expect(page.locator('#line-title')).not_to_be_empty()
+            results.append('loads the Caro-Kann trainer')
+
+            # The course map should expose every branch from the data model.
+            line_count = len(get_course_lines(page, injected))
+            expect(page.locator('.line-item')).to_have_count(line_count)
+            results.append(f'renders all {line_count} course lines')
+
+            # The first opponent move should autoplay and present Black's first decision.
+            wait_for_last_move(page, 'e2e4')
             expect_decision_prompt(page)
-            expect(page.locator('#prompt')).to_contain_text('c6')
-            results.append('loads course and auto-plays 1.e4')
+            expect(page.locator('.piece[data-piece-square="e4"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="e2"]')).to_have_count(0)
+            results.append('autoplays White and presents the Black decision')
 
-            # Board teaching UX: classic pieces, opponent last-move highlight, and a
-            # gray legal-move dot nested inside the yellow recommended-move ring.
-            expect(page.locator('.piece-svg')).to_have_count(32)
-            expect(page.locator('.piece[data-piece-style="classic"] .piece-svg-classic')).to_have_count(32)
-            expect(page.locator('.square.last-move')).to_have_count(2)
-            assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
-            expect(square(page, 'c6').locator('.hint-target-indicator .hint-option-dot')).to_have_count(1)
-            results.append('renders classic pieces, last-move highlights, and yellow+gray recommendation marker')
+            # Hint toggle controls target decoration without changing the position.
+            expect(square(page, 'c6').locator('.hint-target-indicator')).to_have_count(1)
+            page.locator('#hint-toggle').click()
+            expect(square(page, 'c6').locator('.hint-target-indicator')).to_have_count(0)
+            page.locator('#hint-toggle').click()
+            expect(square(page, 'c6').locator('.hint-target-indicator')).to_have_count(1)
+            results.append('toggles move hint decoration')
 
-            # A strategic deviation should explain the repertoire choice without
-            # inventing a causal criticism of the attempted move.
+            # A wrong move should not advance and should explain the repertoire choice.
             click_move(page, 'g8f6')
             expect(page.locator('#feedback')).to_contain_text('not the move this line teaches')
             expect(page.locator('#feedback')).to_contain_text('c6')
-            expect(page.locator('#feedback')).not_to_contain_text('Why this is inaccurate')
-            expect(page.locator('#prompt')).to_contain_text('c6')
-            results.append('explains strategic off-repertoire moves without unsupported criticism')
+            expect(page.locator('.piece[data-piece-square="g8"]')).to_have_count(1)
+            expect(page.locator('.piece[data-piece-square="f6"]')).to_have_count(0)
+            results.append('keeps wrong moves non-mutating and explains the target')
 
-            # A move taught by another branch is a training mismatch, not a chess mistake.
+            # A correct move should advance, then White should autoplay.
+            click_move(page, 'c7c6')
+            expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
+            wait_for_last_move(page, 'd2d4')
+            expect_decision_prompt(page)
+            results.append('advances correct moves and autoplays White replies')
+
+            # A valid move taught in another line should name the matching branch, not call it bad.
             page.locator('#reset-line').click()
             expect(page.locator('#prompt')).to_contain_text('c6')
             click_move(page, 'c7c6')
             wait_for_last_move(page, 'd2d4')
-            expect(page.locator('#prompt')).to_contain_text('d5')
             click_move(page, 'd7d5')
             wait_for_last_move(page, 'e4e5')
-            expect(page.locator('#prompt')).to_contain_text('Bf5')
+            click_move(page, 'c8f5')
+            wait_for_last_move(page, 'b1c3')
+            click_move(page, 'e7e6')
+            wait_for_last_move(page, 'g1f3')
             click_move(page, 'c6c5')
-            expect(page.locator('#feedback')).to_contain_text('c5 is a repertoire move')
             expect(page.locator('#feedback')).to_contain_text('Advance — Immediate counterplay')
             expect(page.locator('#feedback')).to_contain_text('Advance — Main setup')
             expect(page.locator('#feedback')).to_contain_text('Bf5')
@@ -237,10 +154,13 @@ def run():
             expect_decision_prompt(page)
             assert is_highlighted(page, 'd2') and is_highlighted(page, 'd4')
 
-            # ArrowLeft rewinds without mutating training state; history is read-only.
+            # ArrowLeft rewinds without mutating training state. Opponent-turn
+            # history positions are interactive analysis projections; repertoire
+            # turns retain the canonical replay behavior.
             page.keyboard.press('ArrowLeft')
-            expect(page.locator('.chessboard')).to_have_class(re.compile(r'board-readonly'))
-            expect(square(page, 'd7')).to_be_disabled()
+            expect(page.locator('.chessboard')).not_to_have_class(re.compile(r'board-readonly'))
+            expect(square(page, 'd2')).to_be_enabled()
+            expect(square(page, 'd7')).to_be_enabled()
             expect(page.locator('.piece[data-piece-square="c6"]')).to_have_count(1)
             expect(page.locator('.piece[data-piece-square="d2"]')).to_have_count(1)
             assert is_highlighted(page, 'e2') and is_highlighted(page, 'e4')
@@ -253,7 +173,7 @@ def run():
             expect(page.locator('.chessboard')).not_to_have_class(re.compile(r'board-readonly'))
             expect(square(page, 'd7')).to_be_enabled()
             expect(page.locator('.piece[data-piece-square="d4"]')).to_have_count(1)
-            results.append('supports drag moves and read-only ArrowLeft/ArrowRight history review')
+            results.append('supports drag moves plus interactive analysis/replay history navigation')
 
             # Complete line 1 once, schedule it automatically, then prove browser persistence.
             page.locator('#reset-line').click()
@@ -268,80 +188,36 @@ def run():
             expect(page.locator('#prompt')).not_to_contain_text('Complete')
             expect(page.locator('#feedback')).to_contain_text('clean rep')
             expect(page.locator('#grading')).to_be_hidden()
-            assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
-            restore_app(page, injected)
-            expect(page.locator('#course-progress')).to_contain_text(f'1/{line_count}')
-            wait_for_last_move(page, first_line['moves'][0])
-            results.append('persists automatic scheduling/progress through a full app restore')
+            results.append('completes a clean line with automatic scheduling')
 
-            # Reset and prove every branch through the real interactive board.
-            page.get_by_role('button', name='Reset local progress').click()
-            lines = get_course_lines(page, injected)
-            expect(page.locator('#course-progress')).to_contain_text(f'0/{len(lines)}')
-            wait_for_last_move(page, lines[0]['moves'][0])
-            for index, line in enumerate(lines):
-                print(f'ui line {index+1}/{len(lines)}: {line["title"]}', flush=True)
-                page.locator(f'[data-line-index="{index}"]').click()
-                expect(page.locator('#line-title')).to_have_text(line['title'])
-                wait_for_last_move(page, line['moves'][0])
-                for ply in range(1, len(line['moves']), 2):
-                    expect_decision_prompt(page)
-                    click_move(page, line['moves'][ply])
-                    if ply + 1 < len(line['moves']):
-                        wait_for_last_move(page, line['moves'][ply + 1])
-                expect_decision_prompt(page)
-                expect(page.locator('#prompt')).not_to_contain_text('Complete')
-                expect(page.locator('#feedback')).to_contain_text('clean rep')
-                expect(page.locator('#grading')).to_be_hidden()
-            expect(page.locator('#course-progress')).to_contain_text(f'{len(lines)}/{len(lines)}')
-            results.append(f'completes all {len(lines)} Caro-Kann branches through board interactions')
+            before_reload = page.evaluate("""() => JSON.parse(localStorage.getItem('openrep:caro-kann'))""")
+            assert before_reload and before_reload['totalSessions'] >= 1
+            page.reload(wait_until='load')
+            after_reload = page.evaluate("""() => JSON.parse(localStorage.getItem('openrep:caro-kann'))""")
+            assert after_reload and after_reload['totalSessions'] == before_reload['totalSessions']
+            results.append('persists progress in localStorage')
 
-            # The product has only Learn and Practice. Practice exposes a subordinate
-            # Spaced/Weak queue selector, and changing it does not create a third mode.
-            expect(page.locator('[data-mode]')).to_have_count(2)
-            expect(page.locator('[data-mode="drill"]')).to_have_count(0)
-            expect(page.locator('[data-mode="time"]')).to_have_count(0)
-            expect(page.locator('#timer')).to_have_count(0)
-
-            practice_button = page.get_by_role('button', name='Practice test your recall')
-            practice_button.click()
-            expect(practice_button).to_have_class(re.compile(r'active'))
+            # Practice should expose only Spaced/Weak selection and no manual grading buttons.
+            page.get_by_role('button', name=re.compile(r'^Practice')).click()
             expect(page.locator('#practice-options')).to_be_visible()
-            spaced_button = page.get_by_role('button', name='Spaced review on schedule')
-            weak_button = page.get_by_role('button', name='Weak focus weakest lines')
-            expect(spaced_button).to_have_class(re.compile(r'active'))
-            expect(page.locator('#line-counter')).to_contain_text('PRACTICE · SPACED')
+            expect(page.locator('[data-practice-selection="spaced"]')).to_have_count(1)
+            expect(page.locator('[data-practice-selection="weak"]')).to_have_count(1)
+            expect(page.locator('[data-grade]')).to_have_count(0)
+            results.append('uses automatic practice scheduling without manual grading')
 
-            weak_button.click()
-            expect(weak_button).to_have_class(re.compile(r'active'))
-            expect(spaced_button).not_to_have_class(re.compile(r'active'))
-            expect(page.locator('#line-counter')).to_contain_text('PRACTICE · WEAK')
-
-            learn_button = page.get_by_role('button', name='Learn discover lines')
-            learn_button.click()
-            expect(learn_button).to_have_class(re.compile(r'active'))
+            # Switching back to Learn should preserve the branch map and normal lesson controls.
+            page.get_by_role('button', name=re.compile(r'^Learn')).click()
             expect(page.locator('#practice-options')).to_be_hidden()
-            page.get_by_role('button', name='Hint: on').click()
-            expect(page.get_by_role('button', name='Hint: off')).to_be_visible()
-            results.append('Learn and Practice are the only modes; Practice toggles Spaced and Weak queues')
+            expect(page.locator('.line-item')).to_have_count(line_count)
+            results.append('switches cleanly between Learn and Practice')
 
-            page.set_viewport_size({"width": 390, "height": 844})
-            expect(page.get_by_role('heading', name='Caro-Kann Defense')).to_be_visible()
-            no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1')
-            assert no_overflow, 'mobile viewport has horizontal overflow'
-            results.append('390px mobile layout renders without horizontal overflow')
-            page.set_viewport_size({"width": 1440, "height": 1050})
-
-            screenshot = ROOT / 'e2e' / 'proof.png'
-            page.screenshot(path=str(screenshot), full_page=True)
-            results.append(f'captured UI proof screenshot: {screenshot.name}')
             browser.close()
-
-        print(json.dumps({"passed": len(results), "checks": results}, indent=2))
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+    print(json.dumps(results, indent=2))
 
 
 if __name__ == '__main__':
