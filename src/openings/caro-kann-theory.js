@@ -135,7 +135,8 @@ const caroKannDecisionCues = {
     13: 'With the queen safe, reinforce the position and open the dark-squared bishop.',
     15: 'Reduce White’s compensation by exchanging the centralized piece that drives the initiative.',
     17: 'Develop with tempo against the active bishop and prepare kingside safety.',
-    19: 'Complete queenside development and support a calm bishop-development-and-castling setup.'
+    19: 'Develop the queenside knight while controlling the central squares White wants to use for compensation.',
+    21: 'White has used the open d-file to pin the developed knight to your queen. Step out of the pin while keeping the queen active.'
   }
 };
 
@@ -153,7 +154,7 @@ const completionRationale = {
   'early-nf3': 'Develops the light-squared bishop outside the pawn chain before ...e6 while keeping the bishop flexible.',
   'advance-early-c5': 'Develops toward f5 or g6 while keeping the f-pawn free, reinforcing the flexible pressure created by the early ...c5 setup.',
   'accelerated-panov': 'Develops the last queenside minor piece after the tactical liquidation, leaving Black with equal material and no exposed queen to target.',
-  'classical-burris': 'Completes queenside development after Black has accepted and consolidated the gambit pawn, leaving bishop development and castling as straightforward next steps.'
+  'classical-burris': 'Steps out of the d-file pin while keeping the extra pawn, after which Black can finish ordinary development with Be7 and castling.'
 };
 
 export const caroKannMoveTheory = caroKann.lines.flatMap(line => {
@@ -249,7 +250,7 @@ export const caroKannLessonDecisions = [
   },
   {
     id: 'classical-burris-completion',
-    anchor: { lineId: 'classical-burris', ply: 19 },
+    anchor: { lineId: 'classical-burris', ply: 21 },
     objective: 'Accept the Burris Gambit pawn, neutralize White’s development tempi, and consolidate the extra material through exchanges and development.'
   }
 ];
