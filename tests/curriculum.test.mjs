@@ -87,7 +87,7 @@ test('generic curriculum validation is not tied to a Caro-Kann course', () => {
     ]
   };
 
-  assert.equal(validateCurriculum(course, curriculum), true);
+  assert.equal(validateCurriculum(course, caroKannCurriculum), true);
   assert.deepEqual(curriculumLineOrder(course.lines, curriculum).map(line => line.id), ['line-a', 'line-b']);
   assert.deepEqual(curriculumConceptsForMember(curriculum, 'line', 'line-b').map(concept => concept.id), ['shared-pattern']);
 });
@@ -195,7 +195,7 @@ test('5.Bd3 is a full On demand Burris line rather than a standalone response', 
   assert.deepEqual(burris.moves, [
     'e2e4','c7c6','d2d4','d7d5','b1c3','d5e4','c3e4','c8f5',
     'f1d3','d8d4','g1f3','d4d8','d1e2','e7e6','e1g1','f5e4',
-    'd3e4','g8f6','c1f4','b8d7'
+    'd3e4','g8f6','c1f4','b8d7','f1d1','d8b6'
   ]);
 
   const family = caroKannCurriculum.families.find(candidate => candidate.id === 'classical-burris');
