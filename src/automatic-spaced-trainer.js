@@ -1,5 +1,6 @@
 import { OpenRepTrainerApp } from './practice-trainer.js?v=recent-attempt-mastery-v1';
 import { CoachingTrainerApp } from './coaching-trainer.js?v=history-advice-v2';
+import { classifyMoveQuality } from './evaluation.js?v=move-quality-v1';
 import { miniChessToFen } from './position-fen.js';
 
 function historicalFeedbackRoot(root) {
@@ -40,22 +41,26 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
     const replay = super.historicalReplayContext();
     if (!replay) return null;
 
-    const expected = replay.chess.turn() === this.course.side
+    const displayedTurn = replay.chess.turn();
+    const repertoireTurn = displayedTurn === this.course.side;
+    const expected = repertoireTurn
       ? this.expectedDecisionMoveAtPly(this.viewPly)
       : null;
     const interactive = Boolean(
-      expected
-      && this.viewPly < this.ply
-      && replay.chess.turn() === this.course.side
+      this.viewPly < this.ply
+      && (repertoireTurn ? expected : true)
     );
 
     // Board/history reconstruction may use the move the learner actually
     // played. Attempt semantics must come from the canonical route decision.
+    // Opponent turns are analysis-only: any legal move can be scored without
+    // becoming part of the lesson route or learner progress.
     return {
       ...replay,
       playedMove: replay.expected,
       expected,
-      interactive
+      interactive,
+      analysisSide: repertoireTurn ? null : displayedTurn
     };
   }
 
@@ -104,11 +109,64 @@ export class AutomaticSpacedTrainerApp extends OpenRepTrainerApp {
     historyFeedback.setAttribute('aria-hidden', 'false');
   }
 
+  showHistoricalOpponentMoveScore(notation, quality) {
+    this.showHistoricalReplayFeedback(`${notation}.`, 'neutral');
+    if (!quality) return;
+    const projection = Object.create(this);
+    projection.root = historicalFeedbackRoot(this.root);
+    CoachingTrainerApp.prototype.prependMoveQualityFeedback.call(projection, quality);
+  }
+
+  evaluateHistoricalOpponentMove(replay, attempted) {
+    const historyPly = this.viewPly;
+    const side = replay.analysisSide ?? replay.chess.turn();
+    let notation;
+    try {
+      notation = replay.chess.notationFor(attempted);
+    } catch {
+      return;
+    }
+
+    this.wrongMoveEvaluationRequest += 1;
+    const request = this.wrongMoveEvaluationRequest;
+    this.board.clearSelection();
+    this.showHistoricalReplayFeedback(`${notation}. Evaluating…`, 'neutral');
+    this.refreshBoardState();
+
+    if (!this.evaluator?.evaluateMove) {
+      this.showHistoricalReplayFeedback(`${notation}. Evaluation unavailable.`, 'neutral');
+      return;
+    }
+
+    Promise.resolve(this.evaluator.evaluateMove(replay.chess, attempted)).then(result => {
+      if (request !== this.wrongMoveEvaluationRequest || this.viewPly !== historyPly) return;
+      if (!result) {
+        this.showHistoricalReplayFeedback(`${notation}. Evaluation unavailable.`, 'neutral');
+        return;
+      }
+      const quality = classifyMoveQuality(result.before, result.move, side);
+      if (!quality) {
+        this.showHistoricalReplayFeedback(`${notation}. Evaluation unavailable.`, 'neutral');
+        return;
+      }
+      this.showHistoricalOpponentMoveScore(notation, quality);
+    }).catch(() => {
+      if (request === this.wrongMoveEvaluationRequest && this.viewPly === historyPly) {
+        this.showHistoricalReplayFeedback(`${notation}. Evaluation unavailable.`, 'neutral');
+      }
+    });
+  }
+
   replayHistoricalMove(from, to) {
     const replay = this.historicalReplayContext();
     if (!replay?.interactive) return;
 
     const attempted = `${from}${to}`;
+    if (replay.analysisSide) {
+      this.evaluateHistoricalOpponentMove(replay, attempted);
+      return;
+    }
+
     if (replay.expected?.startsWith(attempted)) {
       super.replayHistoricalMove(from, to);
       return;
