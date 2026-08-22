@@ -72,7 +72,7 @@ def run():
             expect(page.locator('#line-variation')).to_contain_text('5.Bd3 Qxd4')
 
             # The promoted branch must continue beyond the first answer and train the
-            # gambit-specific consolidation decisions through 10...Nbd7.
+            # gambit-specific consolidation decisions through 11...Qb6.
             play_black_moves(page, [
                 ('c7c6', 'd2d4'),
                 ('d7d5', 'b1c3'),
@@ -83,7 +83,8 @@ def run():
                 ('e7e6', 'e1g1'),
                 ('f5e4', 'd3e4'),
                 ('g8f6', 'c1f4'),
-                ('b8d7', None),
+                ('b8d7', 'f1d1'),
+                ('d8b6', None),
             ])
 
             expect_decision_prompt(page)
