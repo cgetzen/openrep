@@ -87,7 +87,7 @@ test('generic curriculum validation is not tied to a Caro-Kann course', () => {
     ]
   };
 
-  assert.equal(validateCurriculum(course, caroKannCurriculum), true);
+  assert.equal(validateCurriculum(course, curriculum), true);
   assert.deepEqual(curriculumLineOrder(course.lines, curriculum).map(line => line.id), ['line-a', 'line-b']);
   assert.deepEqual(curriculumConceptsForMember(curriculum, 'line', 'line-b').map(concept => concept.id), ['shared-pattern']);
 });
