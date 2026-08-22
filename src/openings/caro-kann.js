@@ -219,7 +219,7 @@ export const caroKann = {
       title: 'Classical — 5.Bd3 Burris Gambit',
       variation: '1.e4 c6 2.d4 d5 3.Nc3 dxe4 4.Nxe4 Bf5 5.Bd3 Qxd4',
       summary: 'Accept the offered d-pawn, then give back queen tempi to consolidate the extra material and finish development.',
-      moves: ['e2e4','c7c6','d2d4','d7d5','b1c3','d5e4','c3e4','c8f5','f1d3','d8d4','g1f3','d4d8','d1e2','e7e6','e1g1','f5e4','d3e4','g8f6','c1f4','b8d7'],
+      moves: ['e2e4','c7c6','d2d4','d7d5','b1c3','d5e4','c3e4','c8f5','f1d3','d8d4','g1f3','d4d8','d1e2','e7e6','e1g1','f5e4','d3e4','g8f6','c1f4','b8d7','f1d1','d8b6'],
       notes: {
         1: '1...c6 keeps the Caro-Kann structure and prepares the central challenge.',
         3: '2...d5 contests White’s center immediately.',
@@ -230,7 +230,8 @@ export const caroKann = {
         13: '7...e6 reinforces the position and opens the dark-squared bishop.',
         15: '8...Bxe4 removes the centralized knight and reduces White’s attacking momentum.',
         17: '9...Nf6 develops with tempo against the bishop on e4 and brings Black closer to castling.',
-        19: '10...Nbd7 completes queenside development and leaves Black ready for Be7 and castling.'
+        19: '10...Nbd7 develops the queenside knight but allows White to use the open d-file to gain another tempo.',
+        21: '11...Qb6 steps off the d-file pressure, keeps the extra pawn, and leaves Be7 and castling as straightforward development.'
       }
     }
   ]
