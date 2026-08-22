@@ -258,6 +258,7 @@ def run():
             # Complete line 1 once, schedule it automatically, then prove browser persistence.
             page.locator('#reset-line').click()
             first_line = get_course_lines(page, injected)[0]
+            line_count = len(get_course_lines(page, injected))
             for ply in range(1, len(first_line['moves']), 2):
                 expect_decision_prompt(page)
                 click_move(page, first_line['moves'][ply])
@@ -269,14 +270,14 @@ def run():
             expect(page.locator('#grading')).to_be_hidden()
             assert any(key.startswith('openrep:v1:') for key in storage_keys(page, injected))
             restore_app(page, injected)
-            expect(page.locator('#course-progress')).to_contain_text('1/13')
+            expect(page.locator('#course-progress')).to_contain_text(f'1/{line_count}')
             wait_for_last_move(page, first_line['moves'][0])
             results.append('persists automatic scheduling/progress through a full app restore')
 
             # Reset and prove every branch through the real interactive board.
             page.get_by_role('button', name='Reset local progress').click()
-            expect(page.locator('#course-progress')).to_contain_text('0/13')
             lines = get_course_lines(page, injected)
+            expect(page.locator('#course-progress')).to_contain_text(f'0/{len(lines)}')
             wait_for_last_move(page, lines[0]['moves'][0])
             for index, line in enumerate(lines):
                 print(f'ui line {index+1}/{len(lines)}: {line["title"]}', flush=True)
@@ -292,8 +293,8 @@ def run():
                 expect(page.locator('#prompt')).not_to_contain_text('Complete')
                 expect(page.locator('#feedback')).to_contain_text('clean rep')
                 expect(page.locator('#grading')).to_be_hidden()
-            expect(page.locator('#course-progress')).to_contain_text('13/13')
-            results.append('completes all 13 Caro-Kann branches through board interactions')
+            expect(page.locator('#course-progress')).to_contain_text(f'{len(lines)}/{len(lines)}')
+            results.append(f'completes all {len(lines)} Caro-Kann branches through board interactions')
 
             # The product has only Learn and Practice. Practice exposes a subordinate
             # Spaced/Weak queue selector, and changing it does not create a third mode.

@@ -186,3 +186,29 @@ test('2.c4 is a full Important branch with multiple repertoire decisions', () =>
   assert.equal(c4.targetLineId, 'accelerated-panov');
   assert.equal(index.responseById.has('accelerated-panov-c4'), false);
 });
+
+test('5.Bd3 is a full On demand Burris line rather than a standalone response', () => {
+  const course = buildCourse();
+  const index = new RepertoireMoveIndex(course);
+  const burris = course.lines.find(line => line.id === 'classical-burris');
+  assert.ok(burris);
+  assert.deepEqual(burris.moves, [
+    'e2e4','c7c6','d2d4','d7d5','b1c3','d5e4','c3e4','c8f5',
+    'f1d3','d8d4','g1f3','d4d8','d1e2','e7e6','e1g1','f5e4',
+    'd3e4','g8f6','c1f4','b8d7','f1d1','d8b6'
+  ]);
+
+  const family = caroKannCurriculum.families.find(candidate => candidate.id === 'classical-burris');
+  assert.ok(family);
+  assert.equal(family.tier, 'on-demand');
+  assert.deepEqual(family.lineIds, ['classical-burris']);
+  assert.deepEqual(family.responseIds, []);
+
+  const classical = course.lines.find(line => line.id === 'classical-main');
+  const bd3 = index.opponentAlternatives(classical, 8).find(candidate => candidate.opponentMove === 'f1d3');
+  assert.ok(bd3);
+  assert.equal(bd3.kind, 'branch');
+  assert.equal(bd3.coverage, 'covered-elsewhere');
+  assert.equal(bd3.targetLineId, 'classical-burris');
+  assert.equal(index.responseById.has('classical-bd3'), false);
+});

@@ -102,5 +102,13 @@ export const caroKannBranchTeaching = [
     opponentPlan: 'White wants to use the open center to gain tempi on an exposed queen and turn the early c-pawn push into rapid development.',
     memoryHook: 'Develop the knight before taking d5.',
     source: 'curated'
+  },
+  {
+    lineId: 'classical-burris',
+    position: 'White uses Bd3 to offer the d4-pawn and gain development tempi against Black’s queen.',
+    plan: 'Accept the pawn, retreat the queen when Nf3 gains a tempo, then reduce White’s compensation through exchanges and coordinated development.',
+    opponentPlan: 'White wants rapid development, open lines, and repeated queen attacks to turn the pawn sacrifice into an initiative.',
+    memoryHook: 'Take the pawn, then make every retreat useful.',
+    source: 'curated'
   }
 ];

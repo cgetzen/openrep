@@ -20,18 +20,6 @@ export const caroKannResponses = [
     responseNote: 'e6 keeps the bishop outside the pawn chain and prepares the same central counterplay as the main setup.'
   },
   {
-    id: 'classical-bd3',
-    source: 'curated',
-    anchor: { lineId: 'classical-main', ply: 8 },
-    teachingOwnerLineId: 'classical-main',
-    move: 'f1d3',
-    response: 'e7e6',
-    continuation: ['g1f3', 'b8d7'],
-    label: 'Quiet development',
-    idea: 'White develops instead of immediately chasing the bishop. Complete the compact setup and bring the queenside knight toward f6.',
-    responseNote: 'e6 supports the center and keeps development simple; there is no need to manufacture tactics against Bd3.'
-  },
-  {
     id: 'exchange-nf3',
     source: 'curated',
     anchor: { lineId: 'exchange-main', ply: 6 },
