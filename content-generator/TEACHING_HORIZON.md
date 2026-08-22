@@ -53,6 +53,6 @@ The previous Caro-Kann content modeled `5.Bd3` as one response. That was too nar
 
 The full teaching line now runs through:
 
-`5.Bd3 Qxd4 6.Nf3 Qd8 7.Qe2 e6 8.O-O Bxe4 9.Bxe4 Nf6 10.Bf4 Nbd7`
+`5.Bd3 Qxd4 6.Nf3 Qd8 7.Qe2 e6 8.O-O Bxe4 9.Bxe4 Nf6 10.Bf4 Nbd7 11.Rfd1 Qb6`
 
-The line stops after `Nbd7` because the gambit-specific problem is resolved: Black has kept the extra pawn, the queen is no longer being chased, White's most active centralized piece has been exchanged, and Black has reached ordinary development with bishop development and castling as the next natural steps. Continuing farther would add substantially less new branch-specific information.
+The line stops after `Qb6` because the gambit-specific problem is resolved: Black has kept the extra pawn, stepped out of the d-file pressure, reduced White's initial compensation through exchanges, and can now finish with ordinary development such as Be7 and castling. Continuing farther would add substantially less branch-specific information.
