@@ -41,10 +41,22 @@ def run():
             wait_for_last_move(page, 'd2d4')
             expect(page.locator('#history-status')).to_have_text('Current position')
 
-            # The intermediate opponent-turn position remains read-only.
+            # Rewinding to an opponent turn is an analysis projection: White can
+            # try any legal move, see the engine move-quality score, and remain on
+            # the same historical position so another White move can be compared.
             page.locator('#history-back').click()
             expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
-            expect(square(page, 'd2')).to_be_disabled()
+            expect(square(page, 'd2')).to_be_enabled()
+            click_move(page, 'd2d3')
+            historical_feedback = page.locator('#history-feedback')
+            expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
+            expect(historical_feedback.locator('.move-quality')).to_have_count(1, timeout=15000)
+            expect(historical_feedback).to_contain_text('d3')
+            assert re.search(
+                r'(Best|Excellent|Good|Inaccuracy|Mistake|Blunder|Miss) \(',
+                historical_feedback.inner_text(),
+            )
+            expect(square(page, 'd2')).to_be_enabled()
 
             # Rewind to the exact same Black decision and try the exact same bad move.
             # 1→2→X and 1→2→3→2→X must be learner-facing identical.
@@ -75,7 +87,7 @@ def run():
             expect(page.locator('#history-status')).to_have_text('Position 2 / 3')
 
             browser.close()
-            print('Interactive history replay and equivalent-attempt parity regression passed')
+            print('Interactive history replay, opponent move evaluation, and equivalent-attempt parity regression passed')
     finally:
         server.shutdown()
         server.server_close()
