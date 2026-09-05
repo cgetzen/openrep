@@ -43,3 +43,16 @@ jobs:
             --notes "Ephemeral Wrong Channel media transfer. Safe to delete after Drive upload."
           url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$FILE_NAME"
           gh issue comment "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "READY $url"
+
+      - name: Attach video to issue for connector handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz" -o "$RUNNER_TEMP/gh.tgz"
+          tar -xzf "$RUNNER_TEMP/gh.tgz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/gh_2.99.0_linux_amd64/bin/gh" issue comment "${{ github.event.issue.number }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "ATTACHED" \
+            --attach "$RUNNER_TEMP/$FILE_NAME"
