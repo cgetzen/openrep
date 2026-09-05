@@ -1,5 +1,6 @@
 name: Wrong Channel Fal transfer bootstrap
 
+# Triggered from ChatGPT for bootstrap validation.
 on:
   push:
     paths:
