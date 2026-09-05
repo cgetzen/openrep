@@ -5,7 +5,7 @@ on:
     types: [opened]
 
 permissions:
-  contents: write
+  contents: read
   issues: write
 
 jobs:
@@ -16,43 +16,32 @@ jobs:
       SOURCE_URL: https://v3b.fal.media/files/b/0aa93078/ntyWUV9-bgLu0fpW1Pb1l_minimax-h3.mp4
       FILE_NAME: wc_e001_s006_connor_side_h3max_t01_raw.mp4
     steps:
-      - name: Download Fal video
+      - name: Download and validate Fal video
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"
           curl --fail --location --retry 3 --retry-all-errors \
-            --output "$RUNNER_TEMP/$FILE_NAME" "$SOURCE_URL"
-          test -s "$RUNNER_TEMP/$FILE_NAME"
-          bytes="$(stat -c %s "$RUNNER_TEMP/$FILE_NAME")"
-          if [ "$bytes" != "11319790" ]; then
-            echo "Unexpected size: $bytes" >&2
-            exit 1
-          fi
-          sha256sum "$RUNNER_TEMP/$FILE_NAME"
+            --output "$RUNNER_TEMP/out/$FILE_NAME" "$SOURCE_URL"
+          test -s "$RUNNER_TEMP/out/$FILE_NAME"
+          bytes="$(stat -c %s "$RUNNER_TEMP/out/$FILE_NAME")"
+          test "$bytes" = "11319790"
+          sha256sum "$RUNNER_TEMP/out/$FILE_NAME"
 
-      - name: Publish ephemeral release asset
+      - name: Upload connector-downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrong-channel-fal-video
+          path: ${{ runner.temp }}/out/${{ env.FILE_NAME }}
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Report run id
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -euo pipefail
-          tag="wc-transfer-${GITHUB_RUN_ID}"
-          gh release create "$tag" "$RUNNER_TEMP/$FILE_NAME" \
+          gh issue comment "${{ github.event.issue.number }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "$tag" \
-            --notes "Ephemeral Wrong Channel media transfer. Safe to delete after Drive upload."
-          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$FILE_NAME"
-          gh issue comment "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "READY $url"
-
-      - name: Attach video to issue for connector handoff
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsSL "https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz" -o "$RUNNER_TEMP/gh.tgz"
-          tar -xzf "$RUNNER_TEMP/gh.tgz" -C "$RUNNER_TEMP"
-          "$RUNNER_TEMP/gh_2.99.0_linux_amd64/bin/gh" issue comment "${{ github.event.issue.number }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --body "ATTACHED" \
-            --attach "$RUNNER_TEMP/$FILE_NAME"
+            --body "ARTIFACT_READY run_id=${GITHUB_RUN_ID} name=wrong-channel-fal-video"
