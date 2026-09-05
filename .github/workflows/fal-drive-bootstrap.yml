@@ -1,16 +1,16 @@
 name: Wrong Channel Fal transfer bootstrap
 
-# Triggered from ChatGPT for bootstrap validation.
 on:
-  push:
-    paths:
-      - .github/workflows/fal-drive-bootstrap.yml
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   stage:
+    if: startsWith(github.event.issue.title, '[fal-to-drive]')
     runs-on: ubuntu-latest
     env:
       SOURCE_URL: https://v3b.fal.media/files/b/0aa93078/ntyWUV9-bgLu0fpW1Pb1l_minimax-h3.mp4
@@ -41,4 +41,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "$tag" \
             --notes "Ephemeral Wrong Channel media transfer. Safe to delete after Drive upload."
-          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$FILE_NAME" >> "$GITHUB_STEP_SUMMARY"
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$FILE_NAME"
+          gh issue comment "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" --body "READY $url"
