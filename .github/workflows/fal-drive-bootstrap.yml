@@ -1,0 +1,43 @@
+name: Wrong Channel Fal transfer bootstrap
+
+on:
+  push:
+    paths:
+      - .github/workflows/fal-drive-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_URL: https://v3b.fal.media/files/b/0aa93078/ntyWUV9-bgLu0fpW1Pb1l_minimax-h3.mp4
+      FILE_NAME: wc_e001_s006_connor_side_h3max_t01_raw.mp4
+    steps:
+      - name: Download Fal video
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "$RUNNER_TEMP/$FILE_NAME" "$SOURCE_URL"
+          test -s "$RUNNER_TEMP/$FILE_NAME"
+          bytes="$(stat -c %s "$RUNNER_TEMP/$FILE_NAME")"
+          if [ "$bytes" != "11319790" ]; then
+            echo "Unexpected size: $bytes" >&2
+            exit 1
+          fi
+          sha256sum "$RUNNER_TEMP/$FILE_NAME"
+
+      - name: Publish ephemeral release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="wc-transfer-${GITHUB_RUN_ID}"
+          gh release create "$tag" "$RUNNER_TEMP/$FILE_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$tag" \
+            --notes "Ephemeral Wrong Channel media transfer. Safe to delete after Drive upload."
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$FILE_NAME" >> "$GITHUB_STEP_SUMMARY"
