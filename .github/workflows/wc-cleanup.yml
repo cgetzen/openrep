@@ -1,0 +1,25 @@
+name: Wrong Channel cleanup
+
+on:
+  issues:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.issue.number == 22
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete temporary Wrong Channel releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName --jq '.[].tagName' \
+            | grep '^wc-transfer-' \
+            | while read -r tag; do
+                gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+              done
